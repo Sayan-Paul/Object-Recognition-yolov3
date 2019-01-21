@@ -22,7 +22,7 @@ from core import yolov3, utils
 
 class parser(argparse.ArgumentParser):
 
-    def __init__(self,description):
+    def __init__(self, description):
         super(parser, self).__init__(description)
 
         self.add_argument(

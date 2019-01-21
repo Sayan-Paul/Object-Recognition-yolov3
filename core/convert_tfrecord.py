@@ -16,6 +16,7 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
+
 def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_txt", default='./data/train_data/quick_train_data/quick_train_data.txt')
@@ -62,6 +63,5 @@ def main(argv):
             n += 1
 
 
-if __name__ == "__main__":main(sys.argv[1:])
-
-
+if __name__ == "__main__":
+    main(sys.argv[1:])
