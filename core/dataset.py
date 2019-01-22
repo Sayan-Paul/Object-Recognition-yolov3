@@ -116,6 +116,20 @@ class Parser(object):
                 'image' : tf.FixedLenFeature([], dtype = tf.string),
                 'boxes' : tf.FixedLenFeature([], dtype = tf.string),
             }
+            features = {
+            'image/height': tf.int.FixedLenFeature([], dtype=tf.int64),
+            'image/width': tf.FixedLenFeature([], tf.int64),
+            'image/key/sha256': dataset_util.bytes_feature(key.encode('utf8')),
+            'image/filename': dataset_util.bytes_feature(bytes(filename, "utf-8")),
+            'image/encoded': dataset_util.bytes_feature(encoded_jpg),
+            'image/format': dataset_util.bytes_feature(format),
+            'image/object/bbox/xmin': dataset_util.float_list_feature(xmins),
+            'image/object/bbox/xmax': dataset_util.float_list_feature(xmaxs),
+            'image/object/bbox/ymin': dataset_util.float_list_feature(ymins),
+            'image/object/bbox/ymax': dataset_util.float_list_feature(ymaxs),
+            'image/object/class/text': dataset_util.bytes_list_feature(class_ids),
+            'image/object/class/label': dataset_util.int64_list_feature(class_nums)
+        }
         )
 
         image = tf.image.decode_jpeg(features['image'], channels = 3)

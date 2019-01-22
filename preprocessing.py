@@ -47,8 +47,8 @@ def group_to_tf_record(boxes, image_file):
     key = hashlib.sha256(encoded_jpg).hexdigest()
     for anno in boxes:
         xmins.append(float(anno[1]))
-        xmaxs.append(float(anno[2]))
-        ymins.append(float(anno[3]))
+        xmaxs.append(float(anno[3]))
+        ymins.append(float(anno[2]))
         ymaxs.append(float(anno[4]))
         class_nums.append(LABEL_MAP[anno[0]])
         class_ids.append(bytes(anno[0], "utf-8"))
@@ -193,5 +193,6 @@ if __name__ == "__main__":
     # imagenet_dataset = process_imagenet(imagenet_data_dir)
 
     save_label_map(openimages_data_dir)
+    save_dataset(openimg_dataset, openimages_data_dir, 'oid')
 
     # write_tf_records(openimg_dataset, os.path.join(openimages_data_dir, 'tfrecords'))
