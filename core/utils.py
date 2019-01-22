@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # coding=utf-8
-#================================================================
+# ================================================================
 #   Copyright (C) 2018 * Ltd. All rights reserved.
 #
 #   Editor      : VIM
@@ -9,13 +9,14 @@
 #   Created date: 2018-11-22 12:02:52
 #   Description :
 #
-#================================================================
+# ================================================================
 
 import colorsys
 import numpy as np
 import tensorflow as tf
 from collections import Counter
 from PIL import ImageFont, ImageDraw
+
 
 # Discard all boxes with low scores and high IOU
 def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.4, iou_thresh=0.5):
@@ -39,22 +40,22 @@ def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.4, iou_thre
     max_boxes = tf.constant(max_boxes, dtype='int32')
 
     # since we do nms for single image, then reshape it
-    boxes = tf.reshape(boxes, [-1,4]) # '-1' means we don't konw the exact number of boxes
+    boxes = tf.reshape(boxes, [-1, 4])  # '-1' means we don't konw the exact number of boxes
     # confs = tf.reshape(confs, [-1,1])
-    score = tf.reshape(scores, [-1,num_classes])
+    score = tf.reshape(scores, [-1, num_classes])
 
     # Step 1: Create a filtering mask based on "box_class_scores" by using "threshold".
     mask = tf.greater_equal(score, tf.constant(score_thresh))
     # Step 2: Do non_max_suppression for each class
     for i in range(num_classes):
         # Step 3: Apply the mask to scores, boxes and pick them out
-        filter_boxes = tf.boolean_mask(boxes, mask[:,i])
-        filter_score = tf.boolean_mask(score[:,i], mask[:,i])
+        filter_boxes = tf.boolean_mask(boxes, mask[:, i])
+        filter_score = tf.boolean_mask(score[:, i], mask[:, i])
         nms_indices = tf.image.non_max_suppression(boxes=filter_boxes,
                                                    scores=filter_score,
                                                    max_output_size=max_boxes,
                                                    iou_threshold=iou_thresh, name='nms_indices')
-        label_list.append(tf.ones_like(tf.gather(filter_score, nms_indices), 'int32')*i)
+        label_list.append(tf.ones_like(tf.gather(filter_score, nms_indices), 'int32') * i)
         boxes_list.append(tf.gather(filter_boxes, nms_indices))
         score_list.append(tf.gather(filter_score, nms_indices))
 
@@ -104,6 +105,7 @@ def py_nms(boxes, scores, max_boxes=50, iou_thresh=0.5):
 
     return keep[:max_boxes]
 
+
 def cpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.4, iou_thresh=0.5):
     """
     /*----------------------------------- NMS on cpu ---------------------------------------*/
@@ -118,16 +120,16 @@ def cpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.4, iou_thre
     picked_boxes, picked_score, picked_label = [], [], []
 
     for i in range(num_classes):
-        indices = np.where(scores[:,i] >= score_thresh)
+        indices = np.where(scores[:, i] >= score_thresh)
         filter_boxes = boxes[indices]
-        filter_scores = scores[:,i][indices]
+        filter_scores = scores[:, i][indices]
         if len(filter_boxes) == 0: continue
         # do non_max_suppression on the cpu
         indices = py_nms(filter_boxes, filter_scores,
                          max_boxes=max_boxes, iou_thresh=iou_thresh)
         picked_boxes.append(filter_boxes[indices])
         picked_score.append(filter_scores[indices])
-        picked_label.append(np.ones(len(indices), dtype='int32')*i)
+        picked_label.append(np.ones(len(indices), dtype='int32') * i)
     if len(picked_boxes) == 0: return None, None, None
 
     boxes = np.concatenate(picked_boxes, axis=0)
@@ -136,8 +138,8 @@ def cpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.4, iou_thre
 
     return boxes, score, label
 
-def resize_image_correct_bbox(image, boxes, image_h, image_w):
 
+def resize_image_correct_bbox(image, boxes, image_h, image_w):
     origin_image_size = tf.to_float(tf.shape(image)[0:2])
     image = tf.image.resize_images(image, size=[image_h, image_w])
 
@@ -164,27 +166,28 @@ def draw_boxes(image, boxes, scores, labels, classes, detection_size,
     if boxes is None: return image
     draw = ImageDraw.Draw(image)
     # draw settings
-    font = ImageFont.truetype(font = font, size = np.floor(2e-2 * image.size[1]).astype('int32'))
-    hsv_tuples = [( x / len(classes), 0.9, 1.0) for x in range(len(classes))]
+    font = ImageFont.truetype(font=font, size=np.floor(2e-2 * image.size[1]).astype('int32'))
+    hsv_tuples = [(x / len(classes), 0.9, 1.0) for x in range(len(classes))]
     colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
     colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), colors))
-    for i in range(len(labels)): # for each bounding box, do:
+    for i in range(len(labels)):  # for each bounding box, do:
         bbox, score, label = boxes[i], scores[i], classes[labels[i]]
-        bbox_text = "%s %.2f" %(label, score)
+        bbox_text = "%s %.2f" % (label, score)
         text_size = draw.textsize(bbox_text, font)
         # convert_to_original_size
         detection_size, original_size = np.array(detection_size), np.array(image.size)
         ratio = original_size / detection_size
-        bbox = list((bbox.reshape(2,2) * ratio).reshape(-1))
+        bbox = list((bbox.reshape(2, 2) * ratio).reshape(-1))
 
         draw.rectangle(bbox, outline=colors[labels[i]], width=3)
-        text_origin = bbox[:2]-np.array([0, text_size[1]])
-        draw.rectangle([tuple(text_origin), tuple(text_origin+text_size)], fill=colors[labels[i]])
+        text_origin = bbox[:2] - np.array([0, text_size[1]])
+        draw.rectangle([tuple(text_origin), tuple(text_origin + text_size)], fill=colors[labels[i]])
         # # draw bbox
-        draw.text(tuple(text_origin), bbox_text, fill=(0,0,0), font=font)
+        draw.text(tuple(text_origin), bbox_text, fill=(0, 0, 0), font=font)
 
     image.show() if show else None
     return image
+
 
 def read_coco_names(class_file_name):
     names = {}
@@ -194,9 +197,7 @@ def read_coco_names(class_file_name):
     return names
 
 
-
 def freeze_graph(sess, output_file, output_node_names):
-
     output_graph_def = tf.graph_util.convert_variables_to_constants(
         sess,
         sess.graph.as_graph_def(),
@@ -210,7 +211,6 @@ def freeze_graph(sess, output_file, output_node_names):
 
 
 def read_pb_return_tensors(graph, pb_file, return_elements):
-
     with tf.gfile.FastGFile(pb_file, 'rb') as f:
         frozen_graph_def = tf.GraphDef()
         frozen_graph_def.ParseFromString(f.read())
@@ -263,7 +263,7 @@ def load_weights(var_list, weights_file):
                 bias_shape = bias.shape.as_list()
                 bias_params = np.prod(bias_shape)
                 bias_weights = weights[ptr:ptr +
-                                       bias_params].reshape(bias_shape)
+                                           bias_params].reshape(bias_shape)
                 ptr += bias_params
                 assign_ops.append(tf.assign(bias, bias_weights, validate_shape=True))
                 # we loaded 1 variable
@@ -304,21 +304,21 @@ def preprocess_true_boxes(true_boxes, true_labels, input_shape, anchors, num_cla
     """
     input_shape = np.array(input_shape, dtype=np.int32)
     num_layers = len(anchors) // 3
-    anchor_mask = [[6,7,8], [3,4,5], [0,1,2]] if num_layers==3 else [[3,4,5], [1,2,3]]
-    grid_sizes = [input_shape//32, input_shape//16, input_shape//8]
+    anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]] if num_layers == 3 else [[3, 4, 5], [1, 2, 3]]
+    grid_sizes = [input_shape // 32, input_shape // 16, input_shape // 8]
 
-    box_centers = (true_boxes[:, 0:2] + true_boxes[:, 2:4]) / 2 # the center of box
-    box_sizes =    true_boxes[:, 2:4] - true_boxes[:, 0:2] # the height and width of box
+    box_centers = (true_boxes[:, 0:2] + true_boxes[:, 2:4]) / 2  # the center of box
+    box_sizes = true_boxes[:, 2:4] - true_boxes[:, 0:2]  # the height and width of box
 
     true_boxes[:, 0:2] = box_centers
     true_boxes[:, 2:4] = box_sizes
 
-    y_true_13 = np.zeros(shape=[grid_sizes[0][1], grid_sizes[0][0], 3, 5+num_classes], dtype=np.float32)
-    y_true_26 = np.zeros(shape=[grid_sizes[1][1], grid_sizes[1][0], 3, 5+num_classes], dtype=np.float32)
-    y_true_52 = np.zeros(shape=[grid_sizes[2][1], grid_sizes[2][0], 3, 5+num_classes], dtype=np.float32)
+    y_true_13 = np.zeros(shape=[grid_sizes[0][1], grid_sizes[0][0], 3, 5 + num_classes], dtype=np.float32)
+    y_true_26 = np.zeros(shape=[grid_sizes[1][1], grid_sizes[1][0], 3, 5 + num_classes], dtype=np.float32)
+    y_true_52 = np.zeros(shape=[grid_sizes[2][1], grid_sizes[2][0], 3, 5 + num_classes], dtype=np.float32)
 
     y_true = [y_true_13, y_true_26, y_true_52]
-    anchors_max =  anchors / 2.
+    anchors_max = anchors / 2.
     anchors_min = -anchors_max
     valid_mask = box_sizes[:, 0] > 0
 
@@ -332,7 +332,7 @@ def preprocess_true_boxes(true_boxes, true_labels, input_shape, anchors, num_cla
 
     intersect_mins = np.maximum(boxes_min, anchors_min)
     intersect_maxs = np.minimum(boxes_max, anchors_max)
-    intersect_wh   = np.maximum(intersect_maxs - intersect_mins, 0.)
+    intersect_wh = np.maximum(intersect_maxs - intersect_mins, 0.)
     intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
     box_area = wh[..., 0] * wh[..., 1]
 
@@ -345,18 +345,16 @@ def preprocess_true_boxes(true_boxes, true_labels, input_shape, anchors, num_cla
         for l in range(num_layers):
             if n not in anchor_mask[l]: continue
 
-            i = np.floor(true_boxes[t,0]/input_shape[1]*grid_sizes[l][1]).astype('int32')
-            j = np.floor(true_boxes[t,1]/input_shape[0]*grid_sizes[l][0]).astype('int32')
+            i = np.floor(true_boxes[t, 0] / input_shape[1] * grid_sizes[l][1]).astype('int32')
+            j = np.floor(true_boxes[t, 1] / input_shape[0] * grid_sizes[l][0]).astype('int32')
 
             k = anchor_mask[l].index(n)
             c = true_labels[t].astype('int32')
             y_true[l][i, j, k, 0:4] = true_boxes[t, 0:4]
-            y_true[l][i, j, k,   4] = 1
-            y_true[l][i, j, k, 5+c] = 1
+            y_true[l][i, j, k, 4] = 1
+            y_true[l][i, j, k, 5 + c] = 1
 
     return y_true_13, y_true_26, y_true_52
-
-
 
 
 def get_anchors(anchors_path):
@@ -369,50 +367,60 @@ def get_anchors(anchors_path):
 
 class parser(object):
     def __init__(self, anchors, num_classes, input_shape=[416, 416], debug=False):
-        self.anchors     = anchors
+        self.anchors = anchors
         self.num_classes = num_classes
         self.input_shape = input_shape
-        self.debug       = debug
+        self.debug = debug
 
     def preprocess(self, image, true_labels, true_boxes):
         # resize_image_correct_bbox
         image, true_boxes = resize_image_correct_bbox(image, true_boxes,
                                                       input_shape=self.input_shape)
-        if self.debug: return image, true_boxes
+        if self.debug:
+            return image, true_boxes
 
         image = image / 255
         y_true_13, y_true_26, y_true_52 = tf.py_func(preprocess_true_boxes,
-                            inp=[true_boxes, true_labels, self.input_shape, self.anchors, self.num_classes],
-                            Tout = [tf.float32, tf.float32, tf.float32])
+                                                     inp=[true_boxes, true_labels, self.input_shape, self.anchors,
+                                                          self.num_classes],
+                                                     Tout=[tf.float32, tf.float32, tf.float32])
         # data augmentation
         # pass
 
         return image, y_true_13, y_true_26, y_true_52
 
     def parser_example(self, serialized_example):
-
         features = tf.parse_single_example(
             serialized_example,
-            features = {
-                'image' : tf.FixedLenFeature([], dtype = tf.string),
-                'bboxes': tf.FixedLenFeature([], dtype = tf.string),
-            }
+            features={
+                'image/height': tf.FixedLenFeature([], dtype=tf.int64),
+                'image/width': tf.FixedLenFeature([], dtype=tf.int64),
+                'image/key/sha256': tf.FixedLenFeature([], dtype=tf.string),
+                'image/filename': tf.FixedLenFeature([], dtype=tf.string),
+                'image/encoded': tf.FixedLenFeature([], dtype=tf.string),
+                'image/format': tf.FixedLenFeature([], dtype=tf.string),
+                'image/object/bbox/xmin': tf.FixedLenFeature([], dtype=tf.float32),
+                'image/object/bbox/xmax': tf.FixedLenFeature([], dtype=tf.float32),
+                'image/object/bbox/ymin': tf.FixedLenFeature([], dtype=tf.float32),
+                'image/object/bbox/ymax': tf.FixedLenFeature([], dtype=tf.float32),
+                'image/object/class/text': tf.FixedLenFeature([], dtype=tf.string),
+                'image/object/class/label': tf.FixedLenFeature([], dtype=tf.int64)}
         )
 
-        image = tf.image.decode_jpeg(features['image'], channels = 3)
+        image = tf.image.decode_jpeg(features['image'], channels=3)
         image = tf.image.convert_image_dtype(image, tf.uint8)
 
         true_boxes = tf.decode_raw(features['bboxes'], tf.float32)
-        true_boxes = tf.reshape(true_boxes, shape=[-1,4])
-        true_labels = features['labels'].values
+        true_boxes = tf.reshape(true_boxes, shape=[-1, 4])
+        true_labels = features['image/object/class/label'].values
 
         return self.preprocess(image, true_labels, true_boxes)
 
-def bbox_iou(A, B):
 
+def bbox_iou(A, B):
     intersect_mins = np.maximum(A[:, 0:2], B[:, 0:2])
     intersect_maxs = np.minimum(A[:, 2:4], B[:, 2:4])
-    intersect_wh   = np.maximum(intersect_maxs - intersect_mins, 0.)
+    intersect_wh = np.maximum(intersect_maxs - intersect_mins, 0.)
     intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
 
     A_area = np.prod(A[:, 2:4] - A[:, 0:2], axis=1)
@@ -422,18 +430,18 @@ def bbox_iou(A, B):
 
     return iou
 
-def evaluate(y_pred, y_true, num_classes, score_thresh=0.5, iou_thresh=0.5):
 
+def evaluate(y_pred, y_true, num_classes, score_thresh=0.5, iou_thresh=0.5):
     num_images = y_true[0].shape[0]
-    true_labels_dict   = {i:0 for i in range(num_classes)} # {class: count}
-    pred_labels_dict   = {i:0 for i in range(num_classes)}
-    true_positive_dict = {i:0 for i in range(num_classes)}
+    true_labels_dict = {i: 0 for i in range(num_classes)}  # {class: count}
+    pred_labels_dict = {i: 0 for i in range(num_classes)}
+    true_positive_dict = {i: 0 for i in range(num_classes)}
 
     for i in range(num_images):
         true_labels_list, true_boxes_list = [], []
-        for j in range(3): # three feature maps
-            true_probs_temp = y_true[j][i][...,5: ]
-            true_boxes_temp = y_true[j][i][...,0:4]
+        for j in range(3):  # three feature maps
+            true_probs_temp = y_true[j][i][..., 5:]
+            true_boxes_temp = y_true[j][i][..., 0:4]
 
             object_mask = true_probs_temp.sum(axis=-1) > 0
 
@@ -441,23 +449,23 @@ def evaluate(y_pred, y_true, num_classes, score_thresh=0.5, iou_thresh=0.5):
             true_boxes_temp = true_boxes_temp[object_mask]
 
             true_labels_list += np.argmax(true_probs_temp, axis=-1).tolist()
-            true_boxes_list  += true_boxes_temp.tolist()
+            true_boxes_list += true_boxes_temp.tolist()
 
         if len(true_labels_list) != 0:
             for cls, count in Counter(true_labels_list).items(): true_labels_dict[cls] += count
 
-        pred_boxes = y_pred[0][i:i+1]
-        pred_confs = y_pred[1][i:i+1]
-        pred_probs = y_pred[2][i:i+1]
+        pred_boxes = y_pred[0][i:i + 1]
+        pred_confs = y_pred[1][i:i + 1]
+        pred_probs = y_pred[2][i:i + 1]
 
-        pred_boxes, pred_confs, pred_labels = cpu_nms(pred_boxes, pred_confs*pred_probs, num_classes,
+        pred_boxes, pred_confs, pred_labels = cpu_nms(pred_boxes, pred_confs * pred_probs, num_classes,
                                                       score_thresh=score_thresh, iou_thresh=iou_thresh)
 
         true_boxes = np.array(true_boxes_list)
-        box_centers, box_sizes = true_boxes[:,0:2], true_boxes[:,2:4]
+        box_centers, box_sizes = true_boxes[:, 0:2], true_boxes[:, 2:4]
 
-        true_boxes[:,0:2] = box_centers - box_sizes / 2.
-        true_boxes[:,2:4] = true_boxes[:,0:2] + box_sizes
+        true_boxes[:, 0:2] = box_centers - box_sizes / 2.
+        true_boxes[:, 2:4] = true_boxes[:, 0:2] + box_sizes
 
         pred_labels_list = [] if pred_labels is None else pred_labels.tolist()
         if pred_labels_list == []: continue
@@ -465,8 +473,8 @@ def evaluate(y_pred, y_true, num_classes, score_thresh=0.5, iou_thresh=0.5):
         detected = []
         for k in range(len(true_labels_list)):
             # compute iou between predicted box and ground_truth boxes
-            iou = bbox_iou(true_boxes[k:k+1], pred_boxes)
-            m = np.argmax(iou) # Extract index of largest overlap
+            iou = bbox_iou(true_boxes[k:k + 1], pred_boxes)
+            m = np.argmax(iou)  # Extract index of largest overlap
             if iou[m] >= iou_thresh and true_labels_list[k] == pred_labels_list[m] and m not in detected:
                 pred_labels_dict[true_labels_list[k]] += 1
                 detected.append(m)
@@ -477,11 +485,9 @@ def evaluate(y_pred, y_true, num_classes, score_thresh=0.5, iou_thresh=0.5):
             p = pred_labels_list.count(c)
             true_positive_dict[c] += p if t >= p else t
 
-    recall    = sum(true_positive_dict.values()) / (sum(true_labels_dict.values()) + 1e-6)
+    recall = sum(true_positive_dict.values()) / (sum(true_labels_dict.values()) + 1e-6)
     precision = sum(true_positive_dict.values()) / (sum(pred_labels_dict.values()) + 1e-6)
-    avg_prec  = [true_positive_dict[i] / (true_labels_dict[i] + 1e-6) for i in range(num_classes)]
-    mAP       = sum(avg_prec) / (sum([avg_prec[i] != 0 for i in range(num_classes)]) + 1e-6)
+    avg_prec = [true_positive_dict[i] / (true_labels_dict[i] + 1e-6) for i in range(num_classes)]
+    mAP = sum(avg_prec) / (sum([avg_prec[i] != 0 for i in range(num_classes)]) + 1e-6)
 
     return recall, precision, mAP
-
-

@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # coding=utf-8
-#================================================================
+# ================================================================
 #   Copyright (C) 2019 * Ltd. All rights reserved.
 #
 #   Editor      : VIM
@@ -9,28 +9,39 @@
 #   Created date: 2019-01-19 22:43:26
 #   Description :
 #
-#================================================================
+# ================================================================
 
 import numpy as np
 from core import utils
 import tensorflow as tf
 
+
 class Parser(object):
     def __init__(self, image_h, image_w, anchors, num_classes, debug=False):
-        self.anchors     = anchors
+        self.anchors = anchors
         self.num_classes = num_classes
-        self.image_h     = image_h
-        self.image_w     = image_w
-        self.debug       = debug
+        self.image_h = image_h
+        self.image_w = image_w
+        self.debug = debug
 
     def preprocess(self, image, gt_boxes):
+        """
+
+        :param image:
+        :type image:
+        :param gt_boxes:
+        :type gt_boxes:
+        :return:
+        :rtype:
+        """
         # resize_image_correct_bbox
         image, gt_boxes = utils.resize_image_correct_bbox(image, gt_boxes, self.image_h, self.image_w)
-        if self.debug: return image, gt_boxes
+        if self.debug:
+            return image, gt_boxes
 
         image = image / 255
         y_true_13, y_true_26, y_true_52 = tf.py_func(self.preprocess_true_boxes, inp=[gt_boxes],
-                            Tout = [tf.float32, tf.float32, tf.float32])
+                                                     Tout=[tf.float32, tf.float32, tf.float32])
         # data augmentation
         # pass
 
@@ -55,21 +66,21 @@ class Parser(object):
                             85: box_centers, box_sizes, confidence, probability
         """
         num_layers = len(self.anchors) // 3
-        anchor_mask = [[6,7,8], [3,4,5], [0,1,2]] if num_layers==3 else [[3,4,5], [1,2,3]]
-        grid_sizes = [[self.image_h//x, self.image_w//x] for x in (32, 16, 8)]
+        anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]] if num_layers == 3 else [[3, 4, 5], [1, 2, 3]]
+        grid_sizes = [[self.image_h // x, self.image_w // x] for x in (32, 16, 8)]
 
-        box_centers = (gt_boxes[:, 0:2] + gt_boxes[:, 2:4]) / 2 # the center of box
-        box_sizes =    gt_boxes[:, 2:4] - gt_boxes[:, 0:2] # the height and width of box
+        box_centers = (gt_boxes[:, 0:2] + gt_boxes[:, 2:4]) / 2  # the center of box
+        box_sizes = gt_boxes[:, 2:4] - gt_boxes[:, 0:2]  # the height and width of box
 
         gt_boxes[:, 0:2] = box_centers
         gt_boxes[:, 2:4] = box_sizes
 
-        y_true_13 = np.zeros(shape=[grid_sizes[0][1], grid_sizes[0][0], 3, 5+self.num_classes], dtype=np.float32)
-        y_true_26 = np.zeros(shape=[grid_sizes[1][1], grid_sizes[1][0], 3, 5+self.num_classes], dtype=np.float32)
-        y_true_52 = np.zeros(shape=[grid_sizes[2][1], grid_sizes[2][0], 3, 5+self.num_classes], dtype=np.float32)
+        y_true_13 = np.zeros(shape=[grid_sizes[0][1], grid_sizes[0][0], 3, 5 + self.num_classes], dtype=np.float32)
+        y_true_26 = np.zeros(shape=[grid_sizes[1][1], grid_sizes[1][0], 3, 5 + self.num_classes], dtype=np.float32)
+        y_true_52 = np.zeros(shape=[grid_sizes[2][1], grid_sizes[2][0], 3, 5 + self.num_classes], dtype=np.float32)
 
         y_true = [y_true_13, y_true_26, y_true_52]
-        anchors_max =  self.anchors / 2.
+        anchors_max = self.anchors / 2.
         anchors_min = -anchors_max
         valid_mask = box_sizes[:, 0] > 0
 
@@ -83,9 +94,9 @@ class Parser(object):
 
         intersect_mins = np.maximum(boxes_min, anchors_min)
         intersect_maxs = np.minimum(boxes_max, anchors_max)
-        intersect_wh   = np.maximum(intersect_maxs - intersect_mins, 0.)
+        intersect_wh = np.maximum(intersect_maxs - intersect_mins, 0.)
         intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
-        box_area       = wh[..., 0] * wh[..., 1]
+        box_area = wh[..., 0] * wh[..., 1]
 
         anchor_area = self.anchors[:, 0] * self.anchors[:, 1]
         iou = intersect_area / (box_area + anchor_area - intersect_area)
@@ -96,15 +107,15 @@ class Parser(object):
             for l in range(num_layers):
                 if n not in anchor_mask[l]: continue
 
-                i = np.floor(gt_boxes[t,0]/self.image_w*grid_sizes[l][1]).astype('int32')
-                j = np.floor(gt_boxes[t,1]/self.image_h*grid_sizes[l][0]).astype('int32')
+                i = np.floor(gt_boxes[t, 0] / self.image_w * grid_sizes[l][1]).astype('int32')
+                j = np.floor(gt_boxes[t, 1] / self.image_h * grid_sizes[l][0]).astype('int32')
 
                 k = anchor_mask[l].index(n)
                 c = gt_boxes[t, 4].astype('int32')
 
                 y_true[l][j, i, k, 0:4] = gt_boxes[t, 0:4]
-                y_true[l][j, i, k,   4] = 1.
-                y_true[l][j, i, k, 5+c] = 1.
+                y_true[l][j, i, k, 4] = 1.
+                y_true[l][j, i, k, 5 + c] = 1.
 
         return y_true_13, y_true_26, y_true_52
 
@@ -112,33 +123,31 @@ class Parser(object):
 
         features = tf.parse_single_example(
             serialized_example,
-            features = {
-                'image' : tf.FixedLenFeature([], dtype = tf.string),
-                'boxes' : tf.FixedLenFeature([], dtype = tf.string),
+            features={
+                'image/height': tf.FixedLenFeature([], dtype=tf.int64),
+                'image/width': tf.FixedLenFeature([], dtype=tf.int64),
+                'image/key/sha256': tf.FixedLenFeature([], dtype=tf.string),
+                'image/filename': tf.FixedLenFeature([], dtype=tf.string),
+                'image/encoded': tf.FixedLenFeature([], dtype=tf.string),
+                'image/format': tf.FixedLenFeature([], dtype=tf.string),
+                # 'image/object/bbox/xmin': tf.FixedLenFeature([], dtype=tf.float32),
+                # 'image/object/bbox/xmax': tf.FixedLenFeature([], dtype=tf.float32),
+                # 'image/object/bbox/ymin': tf.FixedLenFeature([], dtype=tf.float32),
+                # 'image/object/bbox/ymax': tf.FixedLenFeature([], dtype=tf.float32),
+                # 'image/object/class/text': tf.FixedLenFeature([], dtype=tf.string),
+                # 'image/object/class/label': tf.FixedLenFeature([], dtype=tf.int64)
+                'boxes': tf.FixedLenFeature([], dtype=tf.string)
             }
-            features = {
-            'image/height': tf.int.FixedLenFeature([], dtype=tf.int64),
-            'image/width': tf.FixedLenFeature([], tf.int64),
-            'image/key/sha256': dataset_util.bytes_feature(key.encode('utf8')),
-            'image/filename': dataset_util.bytes_feature(bytes(filename, "utf-8")),
-            'image/encoded': dataset_util.bytes_feature(encoded_jpg),
-            'image/format': dataset_util.bytes_feature(format),
-            'image/object/bbox/xmin': dataset_util.float_list_feature(xmins),
-            'image/object/bbox/xmax': dataset_util.float_list_feature(xmaxs),
-            'image/object/bbox/ymin': dataset_util.float_list_feature(ymins),
-            'image/object/bbox/ymax': dataset_util.float_list_feature(ymaxs),
-            'image/object/class/text': dataset_util.bytes_list_feature(class_ids),
-            'image/object/class/label': dataset_util.int64_list_feature(class_nums)
-        }
         )
 
-        image = tf.image.decode_jpeg(features['image'], channels = 3)
+        image = tf.image.decode_jpeg(features['image/encoded'], channels=3)
         image = tf.image.convert_image_dtype(image, tf.uint8)
 
         gt_boxes = tf.decode_raw(features['boxes'], tf.float32)
-        gt_boxes = tf.reshape(gt_boxes, shape=[-1,5])
+        gt_boxes = tf.reshape(gt_boxes, shape=[-1, 5])
 
         return self.preprocess(image, gt_boxes)
+
 
 class dataset(object):
     def __init__(self, parser, tfrecords_path, batch_size, shuffle=None):
@@ -154,8 +163,8 @@ class dataset(object):
         except:
             raise NotImplementedError("No tfrecords found!")
 
-        self._TFRecordDataset = self._TFRecordDataset.map(map_func = self.parser.parser_example,
-                                                        num_parallel_calls = 10).repeat()
+        self._TFRecordDataset = self._TFRecordDataset.map(map_func=self.parser.parser_example,
+                                                          num_parallel_calls=10).repeat()
         if self.shuffle is not None:
             self._TFRecordDataset = self._TFRecordDataset.shuffle(self.shuffle)
         self._TFRecordDataset = self._TFRecordDataset.batch(self.batch_size).prefetch(self.batch_size)
