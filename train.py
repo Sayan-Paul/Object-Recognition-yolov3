@@ -20,14 +20,14 @@ sess = tf.Session()
 IMAGE_H, IMAGE_W = 416, 416
 BATCH_SIZE = 8
 EPOCHS = 2000 * 1000
-LR = 0.0001
+LR = 1e-5
 SHUFFLE_SIZE = 1000
 CLASSES = utils.read_coco_names('./data/oid.names')
 ANCHORS = utils.get_anchors('./data/oid_anchors.txt')
 NUM_CLASSES = len(CLASSES)
 
 train_tfrecord = "data/OpenImages/tfrecords/train/*.tfrecord"
-test_tfrecord = "data/OpenImages/tfrecords/test/*.tfrecord"
+test_tfrecord = "data/OpenImages/tfrecords/validation/*.tfrecord"
 
 parser = Parser(IMAGE_H, IMAGE_W, ANCHORS, NUM_CLASSES)
 trainset = dataset(parser, train_tfrecord, BATCH_SIZE, shuffle=SHUFFLE_SIZE)

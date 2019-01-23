@@ -134,7 +134,7 @@ current_palette = list(sns.xkcd_rgb.values())
 figsize = (15, 35)
 count = 1
 fig = plt.figure(figsize=figsize)
-for k in range(5, 9):
+for k in range(5, 10):
     result = results[k]
     clusters = result["clusters"]
     nearest_clusters = result["nearest_clusters"]

@@ -54,7 +54,7 @@ def group_to_tf_record(boxes, image_file):
         # ymaxs.append(float(anno[4]))
         # class_nums.append(LABEL_STOI[anno[0]])
         # class_ids.append(bytes(anno[0], "utf-8"))
-        boxes[i][0] = LABEL_STOI[anno[0]]
+        boxes[i] = [anno[1], anno[2], anno[3], anno[4], LABEL_STOI[anno[0]]]
 
     boxes = np.array(boxes, dtype=np.float32).tostring()
 

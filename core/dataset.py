@@ -105,7 +105,8 @@ class Parser(object):
 
         for t, n in enumerate(best_anchor):
             for l in range(num_layers):
-                if n not in anchor_mask[l]: continue
+                if n not in anchor_mask[l]:
+                    continue
 
                 i = np.floor(gt_boxes[t, 0] / self.image_w * grid_sizes[l][1]).astype('int32')
                 j = np.floor(gt_boxes[t, 1] / self.image_h * grid_sizes[l][0]).astype('int32')
