@@ -1,2 +1,3 @@
-model_checkpoint_path: "yolov3.ckpt-999"
-all_model_checkpoint_paths: "yolov3.ckpt-999"
+model_checkpoint_path: "yolov3.ckpt-42999"
+all_model_checkpoint_paths: "yolov3.ckpt-41999"
+all_model_checkpoint_paths: "yolov3.ckpt-42999"
