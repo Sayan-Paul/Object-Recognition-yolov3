@@ -13,6 +13,8 @@ data/ImageNet
 
 # Checkpoint
 checkpoint/yolo*
+checkpoint/darknet*
+model_summary/
 
 .idea/
 
