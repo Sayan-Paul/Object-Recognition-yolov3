@@ -33,7 +33,7 @@ $ python video_demo.py # if use camera, set video_path = 0
 ```
 ![image](./docs/images/611_result.jpg)
 ## part 3. Train on your own dataset
-Three files are requirements as follows:
+Three files are required as follows:
 
 - `dataset.txt`: 
 
@@ -59,21 +59,21 @@ toothbrush
 ```
 
 ### 3.1 train raccoon dataset
-[raccoon dataset](https://github.com/YunYang1994/raccoon_dataset) has only one class, I have prepared a shell script in the '`./scripts` which enables you to get data.
+To help you understand my training process, I made this training-pipline demo. [raccoon dataset](https://github.com/YunYang1994/raccoon_dataset) has only one class, I have prepared a shell script in the '`./scripts` which enables you to get data and train it ! Finally `python quick_test.py1` , here I strongly recommend you to set `iou_thresh = 0.5, score_thresh=0.3`.
 ```
-$ wget https://github.com/YunYang1994/tensorflow-yolov3/releases/download/v1.0/darknet53.conv.74
 $ sh scripts/make_raccoon_tfrecords.sh
 $ python quick_train.py
 $ python convert_weight.py -cf ./checkpoint/yolov3.ckpt-19000 -nc 1 -ap ./data/raccoon_anchors.txt --freeze
+$ python quick_test.py
 ```
-Finally, you need to write a demo script like `nms_demo.py`. Here I strongly recommend you to set `iou_thresh = 0.5, score_thresh=0.3`.
 
 ### 3.2 train VOC dataset
-Download VOC-2012 trainval data
+Download VOC-2007 trainval  and test data
 ```bashrc
-$ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar
+$ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar
+$ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar
 ```
-test data is avaliable [here](http://host.robots.ox.ac.uk:8080/eval/downloads/VOC2012test.tar). but you need to login first. Then you need to edit your VOC dataset path in `make_voc_tfrecords.sh`. In this step, you will extract some useful information such as bounding box, category id .etc from VOC dataset and convert them into some `.tfrecord`
+Then you need to edit your VOC dataset path in `make_voc_tfrecords.sh`. In this step, you will extract some useful information such as bounding box, category id .etc from VOC dataset and convert them into some `.tfrecord`
 ```
 $ sh scripts/make_voc_tfrecords.sh
 $ python show_input_image.py   # show your input image (optional)

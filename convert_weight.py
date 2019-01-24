@@ -38,7 +38,7 @@ class parser(argparse.ArgumentParser):
         )
 
         self.add_argument(
-            "--anchors_path", "-ap", default="./data/yolo_anchors.txt", type=str,
+            "--anchors_path", "-ap", default="./data/coco_anchors.txt", type=str,
             help="[default: %(default)s] The path of anchors ...",
             metavar="<AP>",
         )
@@ -72,7 +72,7 @@ class parser(argparse.ArgumentParser):
         )
 
         self.add_argument(
-            "--score_threshold", "-st", default=0.5, type=float,
+            "--score_threshold", "-st", default=0.3, type=float,
             help="[default: %(default)s] The score_threshold for gpu nms",
             metavar="<ST>",
         )
@@ -83,11 +83,13 @@ def main(argv):
     flags = parser(description="freeze yolov3 graph from checkpoint file").parse_args()
     SIZE = flags.image_size
     print("=> the input image size is [%d, %d]" %(SIZE, SIZE))
-    model = yolov3.yolov3(flags.num_classes, anchors_path=flags.anchors_path)
+    anchors = utils.get_anchors(flags.anchors_path)
+    model = yolov3.yolov3(flags.num_classes, anchors)
 
     with tf.Graph().as_default() as graph:
         sess = tf.Session(graph=graph)
         inputs = tf.placeholder(tf.float32, [1, SIZE, SIZE, 3]) # placeholder for detector inputs
+        print("=>", inputs)
 
         with tf.variable_scope('yolov3'):
             feature_map = model.forward(inputs, is_training=False)

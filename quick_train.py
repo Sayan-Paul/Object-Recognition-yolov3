@@ -16,55 +16,76 @@ from core import utils, yolov3
 from core.dataset import dataset, Parser
 sess = tf.Session()
 
-IMAGE_H, IMAGE_W = 416, 416
-BATCH_SIZE       = 16
-EPOCHS           = 20000
-LR               = 0.0001
-SHUFFLE_SIZE     = 1000
+IMAGE_H, IMAGE_W = 608, 608
+BATCH_SIZE       = 8
+EPOCHS           = 10000
+LR               = 0.001
+SHUFFLE_SIZE     = 200
 CLASSES          = utils.read_coco_names('./data/raccoon.names')
-NUM_CLASSES      = len(CLASSES)
 ANCHORS          = utils.get_anchors('./data/raccoon_anchors.txt')
+NUM_CLASSES      = len(CLASSES)
 
-train_tfrecord = "./raccoon_dataset/raccoon*.tfrecords"
-is_training = tf.placeholder(dtype=tf.bool, name="phase_train")
+train_tfrecord   = "./raccoon_dataset/raccoon_train*.tfrecords"
+test_tfrecord    = "./raccoon_dataset/raccoon_test*.tfrecords"
 
 parser   = Parser(IMAGE_H, IMAGE_W, ANCHORS, NUM_CLASSES)
 trainset = dataset(parser, train_tfrecord, BATCH_SIZE, shuffle=SHUFFLE_SIZE)
-example  = trainset.get_next()
+testset  = dataset(parser, test_tfrecord , BATCH_SIZE, shuffle=None)
+
+is_training = tf.placeholder(tf.bool)
+example = tf.cond(is_training, lambda: trainset.get_next(), lambda: testset.get_next())
 
 images, *y_true = example
-model = yolov3.yolov3(NUM_CLASSES,ANCHORS)
+model = yolov3.yolov3(NUM_CLASSES, ANCHORS)
+
 with tf.variable_scope('yolov3'):
-    y_pred = model.forward(images, is_training=is_training)
-    loss = model.compute_loss(y_pred, y_true)
+    pred_feature_map = model.forward(images, is_training=is_training)
+    loss             = model.compute_loss(pred_feature_map, y_true)
+    y_pred           = model.predict(pred_feature_map)
 
-optimizer = tf.train.AdamOptimizer(LR)
-saver = tf.train.Saver(max_to_keep=2)
-
-tf.summary.scalar("loss/coord_loss", loss[1])
-tf.summary.scalar("loss/sizes_loss", loss[2])
-tf.summary.scalar("loss/confs_loss", loss[3])
-tf.summary.scalar("loss/class_loss", loss[4])
+tf.summary.scalar("loss/coord_loss",   loss[1])
+tf.summary.scalar("loss/sizes_loss",   loss[2])
+tf.summary.scalar("loss/confs_loss",   loss[3])
+tf.summary.scalar("loss/class_loss",   loss[4])
 
 write_op = tf.summary.merge_all()
 writer_train = tf.summary.FileWriter("./data/train")
+writer_test  = tf.summary.FileWriter("./data/test")
 
-update_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="yolov3/yolo-v3")
-with tf.control_dependencies(update_var):
-    train_op = optimizer.minimize(loss[0], var_list=update_var) # only update yolo layer
+saver_to_restore = tf.train.Saver(var_list=tf.contrib.framework.get_variables_to_restore(include=["yolov3/darknet-53"]))
+update_vars = tf.contrib.framework.get_variables_to_restore(include=["yolov3/yolo-v3"])
+optimizer = tf.train.AdamOptimizer(LR)
+
+# set dependencies for BN ops
+update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+with tf.control_dependencies(update_ops):
+    train_op = optimizer.minimize(loss[0], var_list=update_vars)
+
 sess.run(tf.global_variables_initializer())
-
-pretrained_weights = tf.global_variables(scope="yolov3/darknet-53")
-load_op = utils.load_weights(var_list=pretrained_weights,
-                            weights_file="./darknet53.conv.74")
-sess.run(load_op)
+saver_to_restore.restore(sess, "./checkpoint/yolov3.ckpt")
+saver = tf.train.Saver(max_to_keep=2)
 
 for epoch in range(EPOCHS):
-    run_items = sess.run([train_op, write_op] + loss, feed_dict={is_training:True})
+    run_items = sess.run([train_op, write_op, y_pred, y_true] + loss, feed_dict={is_training:True})
+
+    if (epoch+1) % 100 == 0:
+        train_rec_value, train_prec_value = utils.evaluate(run_items[2], run_items[3])
+
     writer_train.add_summary(run_items[1], global_step=epoch)
     writer_train.flush() # Flushes the event file to disk
-    if epoch%1000 == 0: saver.save(sess, save_path="./checkpoint/yolov3.ckpt", global_step=epoch)
+    if (epoch+1) % 500 == 0: saver.save(sess, save_path="./checkpoint/yolov3.ckpt", global_step=epoch+1)
 
-    print("=> EPOCH:%10d \tloss_xy:%7.4f \tloss_wh:%7.4f \tloss_conf:%7.4f \tloss_class:%7.4f"
-          %(epoch, run_items[3], run_items[4], run_items[5], run_items[6]))
+    print("=> EPOCH %10d [TRAIN]:\tloss_xy:%7.4f \tloss_wh:%7.4f \tloss_conf:%7.4f \tloss_class:%7.4f"
+        %(epoch+1, run_items[5], run_items[6], run_items[7], run_items[8]))
+
+    run_items = sess.run([write_op, y_pred, y_true] + loss, feed_dict={is_training:False})
+    if (epoch+1) % 100 == 0:
+        test_rec_value, test_prec_value = utils.evaluate(run_items[1], run_items[2])
+        print("\n=======================> evaluation result <================================\n")
+        print("=> EPOCH %10d [TRAIN]:\trecall:%7.4f \tprecision:%7.4f" %(epoch+1, train_rec_value, train_prec_value))
+        print("=> EPOCH %10d [VALID]:\trecall:%7.4f \tprecision:%7.4f" %(epoch+1, test_rec_value,  test_prec_value))
+        print("\n=======================> evaluation result <================================\n")
+
+    writer_test.add_summary(run_items[0], global_step=epoch)
+    writer_test.flush() # Flushes the event file to disk
 
