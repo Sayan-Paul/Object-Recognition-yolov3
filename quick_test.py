@@ -18,7 +18,7 @@ from core import utils
 
 
 IMAGE_H, IMAGE_W = 416, 416
-classes = utils.read_coco_names('./data/raccoon.names')
+classes = utils.read_class_names('./data/raccoon.names')
 num_classes = len(classes)
 image_path = "./raccoon_dataset/images/raccoon-182.jpg"  # 181,
 img = Image.open(image_path)

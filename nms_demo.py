@@ -21,7 +21,7 @@ from core import utils
 IMAGE_H, IMAGE_W = 416, 416
 EPOCHS = 5
 # SIZE = [608, 608]
-classes = utils.read_coco_names('./data/coco.names')
+classes = utils.read_class_names('./data/coco.names')
 num_classes = len(classes)
 image_path = "./data/demo_data/dog.jpg"
 img = Image.open(image_path)

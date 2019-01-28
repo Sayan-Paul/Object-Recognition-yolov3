@@ -189,7 +189,7 @@ def draw_boxes(image, boxes, scores, labels, classes, detection_size,
     return image
 
 
-def read_coco_names(class_file_name):
+def read_class_names(class_file_name):
     names = {}
     with open(class_file_name, 'r') as data:
         for ID, name in enumerate(data):
@@ -295,7 +295,6 @@ def get_anchors(anchors_path, image_h, image_w):
     return anchors.astype(np.int32)
 
 
-
 def bbox_iou(A, B):
     intersect_mins = np.maximum(A[:, 0:2], B[:, 0:2])
     intersect_maxs = np.minimum(A[:, 2:4], B[:, 2:4])
@@ -372,6 +371,7 @@ def evaluate(y_pred, y_true, iou_thresh=0.5, score_thresh=0.3):
     precision = sum(true_positive_dict.values()) / (sum(pred_labels_dict.values()) + 1e-6)
 
     return recall, precision
+
 
 def compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.

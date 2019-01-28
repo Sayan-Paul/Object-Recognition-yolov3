@@ -135,10 +135,12 @@ if __name__ == "__main__":
     for k in anno_map:
         for url in anno_map[k]:
             try:
-                u = urllib2.urlopen(url)
                 scheme, netloc, path, query, fragment = urlparse.urlsplit(url)
                 filename = os.path.join(data_dir, 'downloaded_images', name_map[os.path.basename(path)] + ".jpg")
                 print(filename)
+                if os.path.exists(filename):
+                    continue
+                u = urllib2.urlopen(url)
                 with open(filename, 'wb') as f:
                     meta = u.info()
                     meta_func = meta.getheaders if hasattr(meta, 'getheaders') else meta.get_all

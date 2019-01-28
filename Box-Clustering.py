@@ -9,12 +9,6 @@ from tqdm import tqdm
 from PIL import Image
 
 
-LABELS = ['aeroplane',  'bicycle', 'bird',  'boat',      'bottle', 
-          'bus',        'car',      'cat',  'chair',     'cow',
-          'diningtable','dog',    'horse',  'motorbike', 'person',
-          'pottedplant','sheep',  'sofa',   'train',   'tvmonitor']
-
-
 with open('data/OpenImages/oid.json', 'r') as oid:
     oid_data = json.load(oid)
 
@@ -148,7 +142,7 @@ plt.show()
 anchors = sorted(clusters, key=lambda x: x[0] * x[1])
 anchor_string = ""
 for anchor in anchors:
-    anchor_string += '{},{}, '.format(int(anchor[0]*416), int(anchor[1]*416))
+    anchor_string += '{} {} '.format(round(anchor[0], 4), round(anchor[1], 4))
 anchor_string = anchor_string[:-2]
 
 with open('data/oid_anchors.txt', 'w') as anchor_file:

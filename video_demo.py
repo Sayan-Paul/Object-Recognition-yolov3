@@ -22,7 +22,7 @@ from core import utils
 IMAGE_H, IMAGE_W = 416, 416
 video_path = "./data/demo_data/road.mp4"
 video_path = 0 # use camera
-classes = utils.read_coco_names('./data/coco.names')
+classes = utils.read_class_names('./data/coco.names')
 num_classes = len(classes)
 input_tensor, output_tensors = utils.read_pb_return_tensors(tf.get_default_graph(),
                                                             "./checkpoint/yolov3_cpu_nms.pb",
