@@ -38,14 +38,14 @@ Three files are required as follows:
 - `dataset.txt`: 
 
 ```
-/home/yang/test/tensorflow-yolov3/data/train_data/train2017/000000458533.jpg 18.19 6.32 424.13 421.83 20 323.86 2.65 640.0 421.94 20 
-/home/yang/test/tensorflow-yolov3/data/train_data/train2017/000000514915.jpg 55.38 132.63 519.84 380.4 16
-# image_path, x_min, y_min, x_max, y_max, category_id,  x_min, y_min, ... category_id, 
+xxx/xxx.jpg 18.19 6.32 424.13 421.83 20 323.86 2.65 640.0 421.94 20 
+xxx/xxx.jpg 55.38 132.63 519.84 380.4 16
+# image_path x_min y_min x_max y_max class_id  x_min y_min ... class_id 
 ```
 - `anchors.txt`
 
 ```
-10,13, 16,30, 33,23, 30,61, 62,45, 59,119, 116,90,  156,198,  373,326
+0.10,0.13, 0.16,0.30, 0.33,0.23, 0.40,0.61, 0.62,0.45, 0.69,0.59, 0.76,0.60,  0.86,0.68,  0.91,0.76
 ```
 
 - `class.names`
@@ -59,58 +59,42 @@ toothbrush
 ```
 
 ### 3.1 train raccoon dataset
-To help you understand my training process, I made this training-pipline demo. [raccoon dataset](https://github.com/YunYang1994/raccoon_dataset) has only one class, I have prepared a shell script in the '`./scripts` which enables you to get data and train it ! Finally `python quick_test.py1` , here I strongly recommend you to set `iou_thresh = 0.5, score_thresh=0.3`.
+To help you understand my training process, I made this training-pipline demo. [raccoon dataset](https://github.com/YunYang1994/raccoon_dataset) has only one class, I have prepared a shell script in the '`./scripts` which enables you to get data and train it ! Finally `python quick_test.py` , here I strongly recommend you to set `iou_thresh = 0.5, score_thresh=0.3`.
+#### how to train it ?
 ```
 $ sh scripts/make_raccoon_tfrecords.sh
+$ python show_input_image.py               # show your input image (optional)
+$ python kmeans.py                         # get prior anchors and rescale the values to the range [0,1]
+$ python convert_weight.py --convert       # get pretrained weights
 $ python quick_train.py
-$ python convert_weight.py -cf ./checkpoint/yolov3.ckpt-19000 -nc 1 -ap ./data/raccoon_anchors.txt --freeze
-$ python quick_test.py
+$ tensorboard --logdir ./data
 ```
+As you can see in the tensorboard, if your dataset is too small or you train for too long, the model starts to overfit and learn patterns from training data that does not generalize to the test data.
 
-### 3.2 train VOC dataset
+#### how to test and evaluate it ?
+```
+$ python convert_weight.py -cf ./checkpoint/yolov3.ckpt-2500 -nc 1 -ap ./data/raccoon_anchors.txt --freeze
+$ python quick_test.py
+$ python evaluate.py
+```
+if you are still unfamiliar with training pipline, you can join [here](https://github.com/YunYang1994/tensorflow-yolov3/issues/39) to discuss with us.
+
+|raccoon-181.jpg|raccoon-55.jpg|
+|---|:---:|
+|![weibo-logo](./docs/images/raccoon1.jpg)|![weibo-logo](./docs/images/raccoon2.jpg)|
+
+### 3.2 train other dataset
 Download VOC-2007 trainval  and test data
 ```bashrc
 $ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar
 $ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar
 ```
-Then you need to edit your VOC dataset path in `make_voc_tfrecords.sh`. In this step, you will extract some useful information such as bounding box, category id .etc from VOC dataset and convert them into some `.tfrecord`
+Download COCO trainval  and test data
 ```
-$ sh scripts/make_voc_tfrecords.sh
-$ python show_input_image.py   # show your input image (optional)
-$ python train.py
-```
-
-### 3.4 train coco dataset
-Firstly, you need to download the COCO2017 dataset from the [website](http://cocodataset.org/)　
-```bashrc
 $ wget http://images.cocodataset.org/zips/train2017.zip
-$ unzip train2017.zip
 $ wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
-$ unzip annotations_trainval2017.zip
-```
-Then you are supposed to extract some useful information such as bounding box, category id .etc from COCO dataset and generate your own `.txt` file.
-```
-$ python scripts/extract_coco.py -h
-```
-As a result, you will get  `train2017.txt`.  Here is an example row for one image:<br>
-```
-/home/yang/test/tensorflow-yolov3/data/train_data/train2017/000000458533.jpg 18.19 6.32 424.13 421.83 20 323.86 2.65 640.0 421.94 20 
-/home/yang/test/tensorflow-yolov3/data/train_data/train2017/000000514915.jpg 55.38 132.63 519.84 380.4 16
-# image_path, x_min, y_min, x_max, y_max, category_id,  x_min, y_min, ... category_id, 
-```
-In this step, you will convert image dataset into some `.tfrecord`  which are a kind of recommended file format for Tensorflow to store your data as  binary file. Finally, you can train it now!
-```
-$ python core/convert_tfrecord.py -h
-$ python train.py
-```
-Take [yolov2](https://github.com/YunYang1994/tensorflow-yolov2_from_scratch) training process for example, 
-![image](./docs/images/yolov2_loss.png)
-### 3.4 evaluate coco dataset
-```
 $ wget http://images.cocodataset.org/zips/test2017.zip
 $ wget http://images.cocodataset.org/annotations/image_info_test2017.zip 
-$ unzip test2017.zip
-$ unzip image_info_test2017.zip
 ```
 
 ## part 4. Why it is so magical ?

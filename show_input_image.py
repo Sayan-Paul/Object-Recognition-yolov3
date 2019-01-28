@@ -19,25 +19,23 @@ from PIL import Image
 from core.dataset import Parser, dataset
 sess = tf.Session()
 
-INPUT_SIZE = 416
+IMAGE_H, IMAGE_W = 416, 416
 BATCH_SIZE = 1
 SHUFFLE_SIZE = 1
 
-train_tfrecord = "/home/yang/test/highwaydata/tfrecords/highwaydata*.tfrecords"
-test_tfrecord = "/home/yang/test/highwaydata/tfrecords/highwaydata*.tfrecords"
-anchors        = utils.get_anchors('./data/coco_anchors.txt')
-classes = utils.read_coco_names('./data/vehicle.names')
+train_tfrecord = "./raccoon_dataset/raccoon_*.tfrecords"
+anchors        = utils.get_anchors('./data/raccoon_anchors.txt', IMAGE_H, IMAGE_W)
+classes = utils.read_coco_names('./data/raccoon.names')
 num_classes = len(classes)
 
-parser   = Parser(416, 416, anchors, num_classes, debug=True)
+parser   = Parser(IMAGE_H, IMAGE_W, anchors, num_classes, debug=True)
 trainset = dataset(parser, train_tfrecord, BATCH_SIZE, shuffle=SHUFFLE_SIZE)
-testset  = dataset(parser, test_tfrecord , BATCH_SIZE, shuffle=None)
 
 is_training = tf.placeholder(tf.bool)
-example = tf.cond(is_training, lambda: trainset.get_next(), lambda: testset.get_next())
+example = trainset.get_next()
 
-for l in range(20):
-    image, boxes = sess.run(example, feed_dict={is_training:False})
+for l in range(10):
+    image, boxes = sess.run(example)
     image, boxes = image[0], boxes[0]
 
     n_box = len(boxes)
