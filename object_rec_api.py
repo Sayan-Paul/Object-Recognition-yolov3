@@ -86,11 +86,13 @@ class ObjectRecognition:
         records = np.array(processed)
 
         if self.use_gpu:
-            return self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
+            boxes, scores, labels = self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
         else:
             boxes, scores = self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
-            return utils.cpu_nms(boxes, scores, self.num_classes, score_thresh=self.score_thresh,
-                                 iou_thresh=self.iou_thresh)
+            boxes, scores, labels = utils.cpu_nms(boxes, scores, self.num_classes, score_thresh=self.score_thresh,
+                                                  iou_thresh=self.iou_thresh)
+
+        return {'boxes': boxes, 'scores': scores, 'labels': labels}
 
     def _process_image(self, img):
         """
@@ -111,5 +113,6 @@ if __name__ == "__main__":
     model = ObjectRecognition(use_gpu=False)
     image_path = "data/OpenImages/test/Apple/0da61cd490c57814.jpg"
     img = Image.open(image_path)
-    boxes, scores, labels = model.predict_image(img)
-    image = utils.draw_boxes(img, boxes, scores, labels, model.classes, [model.img_h, model.img_w], show=True)
+    predictions = model.predict_image(img)
+    image = utils.draw_boxes(img, predictions['boxes'], predictions['scores'], predictions['labels'],
+                             model.classes, [model.img_h, model.img_w], show=True)
