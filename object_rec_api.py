@@ -3,6 +3,7 @@
 
 import numpy as np
 import tensorflow as tf
+import os
 from core import utils
 from PIL import Image
 
@@ -12,7 +13,8 @@ __email__ = "sayanpau@usc.edu"
 
 
 IMAGE_H, IMAGE_W = 416, 416
-DEFAULT_CLASS_NAMES_FILE = './data/oid.names'
+DEFAULT_CLASS_NAMES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'oid.names')
+FROZEN_MODEL_DIR = os.path.join(os.path.dirname(__file__), 'frozen_models', 'OID')
 
 
 class ObjectRecognition:
@@ -47,15 +49,16 @@ class ObjectRecognition:
             else:
                 self.gpu_nms_graph = tf.Graph()
                 self.sess = tf.Session(graph=self.gpu_nms_graph)
-
         if not use_gpu:
             self.input_tensor, self.output_tensors = utils.read_pb_return_tensors(self.cpu_nms_graph,
-                                                                                  "frozen_models/OID/yolov3_cpu_nms.pb",
+                                                                                  os.path.join(FROZEN_MODEL_DIR,
+                                                                                               "yolov3_cpu_nms.pb"),
                                                                                   ["Placeholder:0", "concat_9:0",
                                                                                    "mul_6:0"])
         else:
             self.input_tensor, self.output_tensors = utils.read_pb_return_tensors(self.gpu_nms_graph,
-                                                                                  "frozen_models/OID/yolov3_gpu_nms.pb",
+                                                                                  os.path.join(FROZEN_MODEL_DIR,
+                                                                                               "yolov3_gpu_nms.pb"),
                                                                                   ["Placeholder:0", "concat_10:0",
                                                                                    "concat_11:0", "concat_12:0"])
 
