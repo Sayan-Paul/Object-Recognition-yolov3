@@ -31,7 +31,7 @@ NUM_CLASSES      = len(CLASSES)
 EVAL_INTERNAL    = 100
 
 train_tfrecord = "./data/OpenImages/tfrecords/train/*.tfrecord"
-test_tfrecord = "./data/OpenImages/tfrecords/test/*.tfrecord"
+test_tfrecord = "./data/OpenImages/tfrecords/validation/*.tfrecord"
 
 
 parser = Parser(IMAGE_H, IMAGE_W, ANCHORS, NUM_CLASSES)
