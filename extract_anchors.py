@@ -4,27 +4,35 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import json
+import os
 import seaborn as sns
 from tqdm import tqdm
 from PIL import Image
 
 
-with open('data/OpenImages/oid.json', 'r') as oid:
-    oid_data = json.load(oid)
+# data_dir = 'data/OpenImages'
+# data_name = 'oid'
+data_dir = 'data/ImageNet'
+data_name = 'imgnet'
 
-with open('data/OpenImages/label_map.txt', 'r') as label_map_file:
-    label_map = eval(label_map_file.read())
+
+with open(os.path.join(data_dir, data_name + ".json"), 'r') as oid:
+    img_anno_data = json.load(oid)
 
 wh = list()
-
-for split in oid_data:
-    for img_name in tqdm(oid_data[split]['images'], desc="Reading " + split):
-        width, height = Image.open(oid_data[split]['images'][img_name]).size
-        for obj in oid_data[split]['boxes'][img_name]:
+count=0
+for split in img_anno_data:
+    for img_name in tqdm(img_anno_data[split]['images'], desc="Reading " + split):
+        try:
+            width, height = Image.open(img_anno_data[split]['images'][img_name]).size
+        except:
+            count += 1
+            continue
+        for obj in img_anno_data[split]['boxes'][img_name]:
             w = abs(float(obj[3]) - float(obj[1])) / width  # make the width range between [0,GRID_W)
             h = abs(float(obj[4]) - float(obj[2])) / height  # make the width range between [0,GRID_H)
             wh.append([w, h])
-
+print("Errored out:", count)
 wh = np.array(wh)
 print("Clustering feature data is ready. shape = (N object, width and height) =  {}".format(wh.shape))
 
@@ -145,5 +153,5 @@ for anchor in anchors:
     anchor_string += '{} {} '.format(round(anchor[0], 4), round(anchor[1], 4))
 anchor_string = anchor_string[:-2]
 
-with open('data/oid_anchors.txt', 'w') as anchor_file:
+with open(os.path.join(data_dir, data_name + "_anchors.txt"), 'w') as anchor_file:
     anchor_file.write(anchor_string)

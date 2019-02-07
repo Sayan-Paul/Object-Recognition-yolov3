@@ -49,3 +49,26 @@ def deepupdate(target, src):
                 target[k].update(v.copy())
         else:
             target[k] = copy.copy(v)
+
+
+def get_item(name, root, index=0):
+    count = 0
+    for item in root.iter(name):
+        if count == index:
+            return item.text
+        count += 1
+    # Failed to find "index" occurrence of item.
+    return -1
+
+
+def get_int(name, root, index=0):
+    return int(get_item(name, root, index))
+
+
+def get_bb_count(root):
+    index = 0
+    while True:
+        if get_int('xmin', root, index) == -1:
+            break
+        index += 1
+    return index
