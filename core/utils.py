@@ -59,7 +59,7 @@ def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thre
         label_list.append(tf.ones_like(tf.gather(filter_score, nms_indices), 'int32') * i)
         boxes_list.append(tf.gather(filter_boxes, nms_indices))
         score_list.append(tf.gather(filter_score, nms_indices))
-        filter_score_dist.append(tf.gather(filter_score_dist, nms_indices))
+        score_dist_list.append(tf.gather(filter_score_dist, nms_indices))
 
     boxes = tf.concat(boxes_list, axis=0)
     score = tf.concat(score_list, axis=0)
