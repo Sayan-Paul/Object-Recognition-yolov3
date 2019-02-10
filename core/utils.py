@@ -51,7 +51,7 @@ def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thre
         # Step 3: Apply the mask to scores, boxes and pick them out
         filter_boxes = tf.boolean_mask(boxes, mask[:, i])
         filter_score = tf.boolean_mask(score[:, i], mask[:, i])
-        filter_score_dist = tf.boolean_mask(scores, mask[:, i])
+        filter_score_dist = tf.boolean_mask(score, mask[:, i])
         nms_indices = tf.image.non_max_suppression(boxes=filter_boxes,
                                                    scores=filter_score,
                                                    max_output_size=max_boxes,
