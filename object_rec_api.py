@@ -89,13 +89,15 @@ class ObjectRecognition:
         records = np.array(processed)
 
         if self.use_gpu:
-            boxes, scores, labels = self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
+            boxes, scores, labels, scores_dist = self.sess.run(self.output_tensors,
+                                                               feed_dict={self.input_tensor: records})
         else:
             boxes, scores = self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
-            boxes, scores, labels = utils.cpu_nms(boxes, scores, self.num_classes, score_thresh=self.score_thresh,
-                                                  iou_thresh=self.iou_thresh)
+            boxes, scores, labels, scores_dist = utils.cpu_nms(boxes, scores, self.num_classes,
+                                                               score_thresh=self.score_thresh,
+                                                               iou_thresh=self.iou_thresh)
 
-        return {'boxes': boxes, 'scores': scores, 'labels': labels}
+        return {'boxes': boxes, 'scores': scores_dist, 'labels': labels}
 
     def _process_image(self, img):
         """

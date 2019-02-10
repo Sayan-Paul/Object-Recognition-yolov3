@@ -30,5 +30,5 @@ input_tensor, output_tensors = utils.read_pb_return_tensors(cpu_nms_graph, "./ch
                                            ["Placeholder:0", "concat_9:0", "mul_6:0"])
 with tf.Session(graph=cpu_nms_graph) as sess:
     boxes, scores = sess.run(output_tensors, feed_dict={input_tensor: np.expand_dims(img_resized, axis=0)})
-    boxes, scores, labels = utils.cpu_nms(boxes, scores, num_classes, score_thresh=0.3, iou_thresh=0.5)
+    boxes, scores, labels, _ = utils.cpu_nms(boxes, scores, num_classes, score_thresh=0.3, iou_thresh=0.5)
     image = utils.draw_boxes(img, boxes, scores, labels, classes, [IMAGE_H, IMAGE_W], show=True)

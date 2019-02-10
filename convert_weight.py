@@ -101,13 +101,13 @@ def main(argv):
 
         boxes, confs, probs = model.predict(feature_map)
         scores = confs * probs
-        print("=>", boxes.name[:-2], scores.name[:-2])
-        cpu_out_node_names = [boxes.name[:-2], scores.name[:-2]]
-        boxes, scores, labels = utils.gpu_nms(boxes, scores, flags.num_classes,
+        print("=>", boxes.name[:-2], scores.name[:-2], probs.name[:-2])
+        cpu_out_node_names = [boxes.name[:-2], scores.name[:-2], probs.name[:-2]]
+        boxes, scores, labels, _ = utils.gpu_nms(boxes, scores, flags.num_classes,
                                               score_thresh=flags.score_threshold,
                                               iou_thresh=flags.iou_threshold)
-        print("=>", boxes.name[:-2], scores.name[:-2], labels.name[:-2])
-        gpu_out_node_names = [boxes.name[:-2], scores.name[:-2], labels.name[:-2]]
+        print("=>", boxes.name[:-2], scores.name[:-2], probs.name[:-2], labels.name[:-2])
+        gpu_out_node_names = [boxes.name[:-2], scores.name[:-2], probs.name[:-2], labels.name[:-2]]
         feature_map_1, feature_map_2, feature_map_3 = feature_map
         saver = tf.train.Saver(var_list=tf.global_variables(scope='yolov3'))
 
@@ -133,4 +133,5 @@ def main(argv):
             utils.freeze_graph(sess, './frozen_models/OID/yolov3_gpu_nms.pb', gpu_out_node_names)
 
 
-if __name__ == "__main__": main(sys.argv)
+if __name__ == "__main__":
+    main(sys.argv)

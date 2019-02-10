@@ -68,7 +68,7 @@ try:
             true_labels_list += np.argmax(true_probs_temp, axis=-1).tolist()
             true_boxes_list  += true_boxes_temp.tolist()
 
-        pred_boxes, pred_scores, pred_labels = utils.cpu_nms(pred_boxes, pred_confs*pred_probs, NUM_CLASSES,
+        pred_boxes, pred_scores, pred_labels, _ = utils.cpu_nms(pred_boxes, pred_confs*pred_probs, NUM_CLASSES,
                                                       score_thresh=SCORE_THRESH, iou_thresh=IOU_THRESH)
         # image = utils.draw_boxes(image, pred_boxes, pred_scores, pred_labels, CLASSES, [IMAGE_H, IMAGE_W], show=True)
         true_boxes = np.array(true_boxes_list)
