@@ -56,8 +56,8 @@ tf.summary.scalar("loss/class_loss", loss[4])
 
 global_step = tf.Variable(0, trainable=False, collections=[tf.GraphKeys.LOCAL_VARIABLES])
 write_op = tf.summary.merge_all()
-writer_train = tf.summary.FileWriter("./model_summary/train")
-writer_test = tf.summary.FileWriter("./model_summary/test")
+writer_train = tf.summary.FileWriter("./model_summary/OID/train")
+writer_test = tf.summary.FileWriter("./model_summary/OID/test")
 
 saver_to_restore = tf.train.Saver(var_list=tf.contrib.framework.get_variables_to_restore(include=["yolov3/darknet-53"]))
 update_vars = tf.contrib.framework.get_variables_to_restore(include=["yolov3/yolo-v3"])
