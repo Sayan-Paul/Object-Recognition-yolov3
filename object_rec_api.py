@@ -7,10 +7,8 @@ import os
 from core import utils
 from PIL import Image
 
-
 __author__ = "Sayan Paul"
 __email__ = "sayanpau@usc.edu"
-
 
 IMAGE_H, IMAGE_W = 416, 416
 DEFAULT_CLASS_NAMES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'oid.names')
@@ -54,13 +52,14 @@ class ObjectRecognition:
                                                                                   os.path.join(FROZEN_MODEL_DIR,
                                                                                                "yolov3_cpu_nms.pb"),
                                                                                   ["Placeholder:0", "concat_9:0",
-                                                                                   "mul_6:0"])
+                                                                                   "mul_6:0", "concat_8:0"])
         else:
             self.input_tensor, self.output_tensors = utils.read_pb_return_tensors(self.gpu_nms_graph,
                                                                                   os.path.join(FROZEN_MODEL_DIR,
                                                                                                "yolov3_gpu_nms.pb"),
                                                                                   ["Placeholder:0", "concat_10:0",
-                                                                                   "concat_11:0", "concat_12:0"])
+                                                                                   "concat_11:0", "concat_8:0",
+                                                                                   "concat_13:0"])
 
     def predict_image(self, image):
         """
@@ -89,15 +88,15 @@ class ObjectRecognition:
         records = np.array(processed)
 
         if self.use_gpu:
-            boxes, scores, labels, scores_dist = self.sess.run(self.output_tensors,
-                                                               feed_dict={self.input_tensor: records})
+            boxes, _, labels, probs = self.sess.run(self.output_tensors,
+                                                    feed_dict={self.input_tensor: records})
         else:
-            boxes, scores = self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
-            boxes, scores, labels, scores_dist = utils.cpu_nms(boxes, scores, self.num_classes,
-                                                               score_thresh=self.score_thresh,
-                                                               iou_thresh=self.iou_thresh)
+            boxes, scores, probs = self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
+            boxes, _, labels, probs = utils.cpu_nms(boxes, scores, probs, self.num_classes,
+                                                    score_thresh=self.score_thresh,
+                                                    iou_thresh=self.iou_thresh)
 
-        return {'boxes': boxes, 'scores': scores_dist, 'labels': labels}
+        return {'boxes': boxes, 'probs': probs, 'labels': labels}
 
     def _process_image(self, img):
         """
@@ -114,7 +113,6 @@ class ObjectRecognition:
 
 
 if __name__ == "__main__":
-
     model = ObjectRecognition(use_gpu=False)
     image_path = "data/OpenImages/test/Apple/0da61cd490c57814.jpg"
     img = Image.open(image_path)

@@ -19,19 +19,19 @@ sess = tf.Session()
 
 IMAGE_H, IMAGE_W = 416, 416
 
-BATCH_SIZE       = 16
-EPOCHS           = 20000
-LR               = 1e-6 # if Nan, set 0.0005, 0.0001
-DECAY_STEPS      = 1000
-DECAY_RATE       = 0.9
-SHUFFLE_SIZE     = 200
+BATCH_SIZE = 16
+EPOCHS = 20000
+LR = 1e-6  # if Nan, decrease an order of magnitude
+DECAY_STEPS = 1000
+DECAY_RATE = 0.9
+SHUFFLE_SIZE = 200
 CLASSES = utils.read_class_names('./data/oid.names')
-ANCHORS          = utils.get_anchors('./data/oid_anchors.txt', IMAGE_H, IMAGE_W)
-NUM_CLASSES      = len(CLASSES)
-EVAL_INTERNAL    = 100
+ANCHORS = utils.get_anchors('./data/oid_anchors.txt', IMAGE_H, IMAGE_W)
+NUM_CLASSES = len(CLASSES)
+EVAL_INTERNAL = 100
 
-train_tfrecord = "./data/OpenImages/tfrecords/train/*.tfrecord"
-test_tfrecord = "./data/OpenImages/tfrecords/validation/*.tfrecord"
+train_tfrecord = "./data/OID/tfrecords/train/*.tfrecord"
+test_tfrecord = "./data/OID/tfrecords/validation/*.tfrecord"
 
 
 parser = Parser(IMAGE_H, IMAGE_W, ANCHORS, NUM_CLASSES)

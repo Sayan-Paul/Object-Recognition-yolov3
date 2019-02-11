@@ -31,7 +31,7 @@ cpu_nms_graph, gpu_nms_graph = tf.Graph(), tf.Graph()
 
 # nms on GPU
 input_tensor, output_tensors = utils.read_pb_return_tensors(gpu_nms_graph, "./checkpoint/yolov3_gpu_nms.pb",
-                                           ["Placeholder:0", "concat_10:0", "concat_11:0", "concat_12:0"])
+                                           ["Placeholder:0", "concat_10:0", "concat_11:0", "concat_12:0", "concat_13:0"])
 with tf.Session(graph=gpu_nms_graph) as sess:
     for i in range(EPOCHS):
         start = time.time()
@@ -40,12 +40,12 @@ with tf.Session(graph=gpu_nms_graph) as sess:
     image = utils.draw_boxes(img, boxes, scores, labels, classes, [IMAGE_H, IMAGE_W], show=True)
 # nms on CPU
 input_tensor, output_tensors = utils.read_pb_return_tensors(cpu_nms_graph, "./checkpoint/yolov3_cpu_nms.pb",
-                                           ["Placeholder:0", "concat_9:0", "mul_6:0"])
+                                           ["Placeholder:0", "concat_9:0", "mul_6:0", "concat_8:0"])
 with tf.Session(graph=cpu_nms_graph) as sess:
     for i in range(EPOCHS):
         start = time.time()
-        boxes, scores = sess.run(output_tensors, feed_dict={input_tensor: np.expand_dims(img_resized, axis=0)})
-        boxes, scores, labels, _ = utils.cpu_nms(boxes, scores, num_classes, score_thresh=0.5, iou_thresh=0.5)
+        boxes, scores, probs = sess.run(output_tensors, feed_dict={input_tensor: np.expand_dims(img_resized, axis=0)})
+        boxes, scores, labels, _ = utils.cpu_nms(boxes, scores, probs, num_classes, score_thresh=0.5, iou_thresh=0.5)
         print("=> nms on cpu the number of boxes= %d  time=%.2f ms" %(len(boxes), 1000*(time.time()-start)))
     image = utils.draw_boxes(img, boxes, scores, labels, classes, [IMAGE_H, IMAGE_W], show=True)
 

@@ -19,7 +19,7 @@ from PIL import ImageFont, ImageDraw
 
 
 # Discard all boxes with low scores and high IOU
-def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thresh=0.5):
+def gpu_nms(boxes, scores, probs, num_classes, max_boxes=50, score_thresh=0.3, iou_thresh=0.5):
     """
     /*----------------------------------- NMS on gpu ---------------------------------------*/
 
@@ -27,6 +27,7 @@ def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thre
             boxes  -- tensor of shape [1, 10647, 4] # 10647 boxes
             scores -- tensor of shape [1, 10647, num_classes], scores of boxes
             classes -- the return value of function `read_coco_names`
+            probs-- tensor of shape [1, 10647, num_classes], probs of boxes
     Note:Applies Non-max suppression (NMS) to set of boxes. Prunes away boxes that have high
     intersection-over-union (IOU) overlap with previously selected boxes.
 
@@ -36,13 +37,14 @@ def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thre
     iou_thresh -- real value, "intersection over union" threshold used for NMS filtering
     """
 
-    boxes_list, label_list, score_list, score_dist_list = [], [], [], []
+    boxes_list, label_list, score_list, prob_list = [], [], [], []
     max_boxes = tf.constant(max_boxes, dtype='int32')
 
     # since we do nms for single image, then reshape it
     boxes = tf.reshape(boxes, [-1, 4])  # '-1' means we don't konw the exact number of boxes
     # confs = tf.reshape(confs, [-1,1])
     score = tf.reshape(scores, [-1, num_classes])
+    prob = tf.reshape(probs, [-1, num_classes])
 
     # Step 1: Create a filtering mask based on "box_class_scores" by using "threshold".
     mask = tf.greater_equal(score, tf.constant(score_thresh))
@@ -51,7 +53,7 @@ def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thre
         # Step 3: Apply the mask to scores, boxes and pick them out
         filter_boxes = tf.boolean_mask(boxes, mask[:, i])
         filter_score = tf.boolean_mask(score[:, i], mask[:, i])
-        filter_score_dist = tf.boolean_mask(score, mask[:, i])
+        filter_prob = tf.boolean_mask(prob, mask[:, i])
         nms_indices = tf.image.non_max_suppression(boxes=filter_boxes,
                                                    scores=filter_score,
                                                    max_output_size=max_boxes,
@@ -59,14 +61,14 @@ def gpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thre
         label_list.append(tf.ones_like(tf.gather(filter_score, nms_indices), 'int32') * i)
         boxes_list.append(tf.gather(filter_boxes, nms_indices))
         score_list.append(tf.gather(filter_score, nms_indices))
-        score_dist_list.append(tf.gather(filter_score_dist, nms_indices))
+        prob_list.append(tf.gather(filter_prob, nms_indices))
 
     boxes = tf.concat(boxes_list, axis=0)
     score = tf.concat(score_list, axis=0)
-    score_dist = tf.concat(score_dist_list, axis=0)
+    prob = tf.concat(prob_list, axis=0)
     label = tf.concat(label_list, axis=0)
 
-    return boxes, score, label, score_dist
+    return boxes, score, label, prob
 
 
 def py_nms(boxes, scores, max_boxes=50, iou_thresh=0.5):
@@ -109,40 +111,42 @@ def py_nms(boxes, scores, max_boxes=50, iou_thresh=0.5):
     return keep[:max_boxes]
 
 
-def cpu_nms(boxes, scores, num_classes, max_boxes=50, score_thresh=0.3, iou_thresh=0.5):
+def cpu_nms(boxes, scores, probs, num_classes, max_boxes=50, score_thresh=0.3, iou_thresh=0.5):
     """
     /*----------------------------------- NMS on cpu ---------------------------------------*/
     Arguments:
         boxes ==> shape [1, 10647, 4]
         scores ==> shape [1, 10647, num_classes]
+        probs ==> shape [1, 10647, num_classes]
     """
 
     boxes = boxes.reshape(-1, 4)
     scores = scores.reshape(-1, num_classes)
+    probs = probs.reshape(-1, num_classes)
     # Picked bounding boxes
-    picked_boxes, picked_score, picked_label, picked_score_dist = [], [], [], []
+    picked_boxes, picked_score, picked_label, picked_prob = [], [], [], []
 
     for i in range(num_classes):
         indices = np.where(scores[:, i] >= score_thresh)
         filter_boxes = boxes[indices]
         filter_scores = scores[:, i][indices]
-        filter_scores_dist = scores[indices]
+        filter_probs = probs[indices]
         if len(filter_boxes) == 0: continue
         # do non_max_suppression on the cpu
         indices = py_nms(filter_boxes, filter_scores,
                          max_boxes=max_boxes, iou_thresh=iou_thresh)
         picked_boxes.append(filter_boxes[indices])
         picked_score.append(filter_scores[indices])
-        picked_score_dist.append(filter_scores_dist[indices])
+        picked_prob.append(filter_probs[indices])
         picked_label.append(np.ones(len(indices), dtype='int32') * i)
     if len(picked_boxes) == 0: return None, None, None
 
     boxes = np.concatenate(picked_boxes, axis=0)
     score = np.concatenate(picked_score, axis=0)
     label = np.concatenate(picked_label, axis=0)
-    score_dist = np.concatenate(picked_score_dist, axis=0)
+    prob = np.concatenate(picked_prob, axis=0)
 
-    return boxes, score, label, score_dist
+    return boxes, score, label, prob
 
 
 def resize_image_correct_bbox(image, boxes, image_h, image_w):
@@ -346,7 +350,7 @@ def evaluate(y_pred, y_true, iou_thresh=0.5, score_thresh=0.3):
         pred_probs = y_pred[2][i:i + 1]
 
 
-        pred_boxes, pred_scores, pred_labels, _ = cpu_nms(pred_boxes, pred_confs*pred_probs, num_classes,
+        pred_boxes, pred_scores, pred_labels, _ = cpu_nms(pred_boxes, pred_confs*pred_probs, pred_probs, num_classes,
                                                       score_thresh=score_thresh, iou_thresh=iou_thresh)
 
         true_boxes = np.array(true_boxes_list)

@@ -26,7 +26,7 @@ classes = utils.read_class_names('./data/coco.names')
 num_classes = len(classes)
 input_tensor, output_tensors = utils.read_pb_return_tensors(tf.get_default_graph(),
                                                             "./checkpoint/yolov3_cpu_nms.pb",
-                                                            ["Placeholder:0", "concat_9:0", "mul_6:0"])
+                                                            ["Placeholder:0", "concat_9:0", "mul_6:0", "concat_8:0"])
 with tf.Session() as sess:
     vid = cv2.VideoCapture(video_path)
     while True:
@@ -40,8 +40,8 @@ with tf.Session() as sess:
         img_resized = img_resized / 255.
         prev_time = time.time()
 
-        boxes, scores = sess.run(output_tensors, feed_dict={input_tensor: np.expand_dims(img_resized, axis=0)})
-        boxes, scores, labels, _ = utils.cpu_nms(boxes, scores, num_classes, score_thresh=0.4, iou_thresh=0.5)
+        boxes, scores, probs = sess.run(output_tensors, feed_dict={input_tensor: np.expand_dims(img_resized, axis=0)})
+        boxes, scores, labels, _ = utils.cpu_nms(boxes, scores, probs, num_classes, score_thresh=0.4, iou_thresh=0.5)
         image = utils.draw_boxes(image, boxes, scores, labels, classes, (IMAGE_H, IMAGE_W), show=False)
 
         curr_time = time.time()
