@@ -17,6 +17,8 @@ from core.dataset import dataset, Parser
 
 sess = tf.Session()
 
+DATASET_NAME = "OID"
+
 IMAGE_H, IMAGE_W = 416, 416
 
 BATCH_SIZE = 16
@@ -25,13 +27,14 @@ LR = 1e-6  # if Nan, decrease an order of magnitude
 DECAY_STEPS = 1000
 DECAY_RATE = 0.9
 SHUFFLE_SIZE = 200
-CLASSES = utils.read_class_names('./data/oid.names')
-ANCHORS = utils.get_anchors('./data/oid_anchors.txt', IMAGE_H, IMAGE_W)
+CLASSES = utils.read_class_names('./data/' + DATASET_NAME.lower() + '.names')
+ANCHORS = utils.get_anchors('./data/' + DATASET_NAME.lower() + '_anchors.txt', IMAGE_H, IMAGE_W)
 NUM_CLASSES = len(CLASSES)
 EVAL_INTERNAL = 100
 
-train_tfrecord = "./data/OID/tfrecords/train/*.tfrecord"
-test_tfrecord = "./data/OID/tfrecords/validation/*.tfrecord"
+
+train_tfrecord = "./data/" + DATASET_NAME + "/tfrecords/train/*.tfrecord"
+test_tfrecord = "./data/" + DATASET_NAME + "/tfrecords/validation/*.tfrecord"
 
 
 parser = Parser(IMAGE_H, IMAGE_W, ANCHORS, NUM_CLASSES)
@@ -56,8 +59,8 @@ tf.summary.scalar("loss/class_loss", loss[4])
 
 global_step = tf.Variable(0, trainable=False, collections=[tf.GraphKeys.LOCAL_VARIABLES])
 write_op = tf.summary.merge_all()
-writer_train = tf.summary.FileWriter("./model_summary/OID/train")
-writer_test = tf.summary.FileWriter("./model_summary/OID/test")
+writer_train = tf.summary.FileWriter("./model_summary/" + DATASET_NAME + "/train")
+writer_test = tf.summary.FileWriter("./model_summary/" + DATASET_NAME + "/test")
 
 saver_to_restore = tf.train.Saver(var_list=tf.contrib.framework.get_variables_to_restore(include=["yolov3/darknet-53"]))
 update_vars = tf.contrib.framework.get_variables_to_restore(include=["yolov3/yolo-v3"])
