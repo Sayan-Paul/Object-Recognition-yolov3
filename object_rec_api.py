@@ -61,16 +61,6 @@ class ObjectRecognition:
                                                                                    "concat_11:0", "concat_8:0",
                                                                                    "concat_13:0"])
 
-    def predict_image(self, image):
-        """
-        Predict boxes, scores and labels for a single image record
-        :param image:
-        :type image:
-        :return:
-        :rtype:
-        """
-        return self.predict_images(np.expand_dims(image, axis=0))
-
     def predict_images(self, records):
         """
         Predict boxes, scores and labels for each image records
@@ -80,18 +70,33 @@ class ObjectRecognition:
         :rtype:
         """
 
-        # Pre-process records
-        records = np.array(records)
-        processed = []
-        for i in range(records.shape[0]):
-            processed.append(self._process_image(records[i]))
-        records = np.array(processed)
+        result = {'boxes': [], 'probs': [], 'labels': []}
+
+        for record in records:
+            preds = self.predict_image(np.expand_dims(record, axis=0))
+            result['boxes'].append(preds['boxes'])
+            result['probs'].append(preds['probs'])
+            result['labels'].append(preds['labels'])
+
+        return result
+
+    def predict_image(self, record):
+        """
+        Predict boxes, scores and labels for a single image record
+        :param record:
+        :type record:
+        :return:
+        :rtype:
+        """
+        # Pre-process record
+        record = self._process_image(record)
 
         if self.use_gpu:
             boxes, _, labels, probs = self.sess.run(self.output_tensors,
-                                                    feed_dict={self.input_tensor: records})
+                                                    feed_dict={self.input_tensor: np.expand_dims(record, axis=0)})
         else:
-            boxes, scores, probs = self.sess.run(self.output_tensors, feed_dict={self.input_tensor: records})
+            boxes, scores, probs = self.sess.run(self.output_tensors,
+                                                 feed_dict={self.input_tensor: np.expand_dims(record, axis=0)})
             boxes, _, labels, probs = utils.cpu_nms(boxes, scores, probs, self.num_classes,
                                                     score_thresh=self.score_thresh,
                                                     iou_thresh=self.iou_thresh)
