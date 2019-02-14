@@ -12,8 +12,8 @@ data/OpenImages
 data/ImageNet
 
 # Checkpoint
-checkpoint/yolo*
-checkpoint/darknet*
+checkpoint*/yolo*
+checkpoint*/darknet*
 model_summary/
 
 .idea/
