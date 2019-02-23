@@ -9,7 +9,7 @@ bin-release/
 
 # Data folders
 data/OpenImages
-data/ImageNet
+data/IMGNET
 
 # Checkpoint
 checkpoint*/yolo*
