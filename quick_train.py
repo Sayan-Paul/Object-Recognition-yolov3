@@ -17,7 +17,7 @@ from core.dataset import dataset, Parser
 
 sess = tf.Session()
 
-DATASET_NAME = "OID"
+DATASET_NAME = "IMGNET"
 
 IMAGE_H, IMAGE_W = 416, 416
 

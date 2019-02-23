@@ -120,7 +120,7 @@ class ObjectRecognition:
 if __name__ == "__main__":
     model = ObjectRecognition(use_gpu=False)
     image_path = "data/OpenImages/test/Apple/0da61cd490c57814.jpg"
-    img = Image.open(image_path)
+    img = np.asarray(Image.open(image_path))
     predictions = model.predict_image(img)
     image = utils.draw_boxes(img, predictions['boxes'], predictions['scores'], predictions['labels'],
                              model.classes, [model.img_h, model.img_w], show=True)

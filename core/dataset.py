@@ -112,6 +112,12 @@ class Parser(object):
                 i = np.floor(gt_boxes[t, 0] / self.image_w * grid_sizes[l][1]).astype('int32')
                 j = np.floor(gt_boxes[t, 1] / self.image_h * grid_sizes[l][0]).astype('int32')
 
+                if j >= grid_sizes[l][0]:
+                    j = grid_sizes[l][0] - 1
+
+                if i >= grid_sizes[l][1]:
+                    i = grid_sizes[l][1] - 1
+
                 k = anchor_mask[l].index(n)
                 c = gt_boxes[t, 4].astype('int32')
 
