@@ -9,30 +9,30 @@ import seaborn as sns
 from tqdm import tqdm
 from PIL import Image
 
-
-# data_dir = 'data/OpenImages'
-# data_name = 'oid'
-data_dir = 'data/ImageNet'
-data_name = 'imgnet'
-
-
-with open(os.path.join(data_dir, data_name + ".json"), 'r') as oid:
-    img_anno_data = json.load(oid)
-
 wh = list()
-count=0
-for split in img_anno_data:
-    for img_name in tqdm(img_anno_data[split]['images'], desc="Reading " + split):
-        try:
-            width, height = Image.open(img_anno_data[split]['images'][img_name]).size
-        except:
-            count += 1
-            continue
-        for obj in img_anno_data[split]['boxes'][img_name]:
-            w = abs(float(obj[3]) - float(obj[1])) / width  # make the width range between [0,GRID_W)
-            h = abs(float(obj[4]) - float(obj[2])) / height  # make the width range between [0,GRID_H)
-            wh.append([w, h])
-print("Errored out:", count)
+
+for dataset in ['OID', 'IMGNET']:
+    data_dir = 'data/' + dataset
+    data_name = dataset.lower()
+    with open(os.path.join(data_dir, data_name + ".json"), 'r') as oid:
+        img_anno_data = json.load(oid)
+    count = 0
+    for split in img_anno_data:
+        for img_name in tqdm(img_anno_data[split]['images'], desc="Reading " + split):
+            try:
+                width, height = Image.open(img_anno_data[split]['images'][img_name]).size
+            except:
+                count += 1
+                continue
+            for obj in img_anno_data[split]['boxes'][img_name]:
+                w = abs(float(obj[3]) - float(obj[1])) / width  # make the width range between [0,GRID_W)
+                h = abs(float(obj[4]) - float(obj[2])) / height  # make the width range between [0,GRID_H)
+                wh.append([w, h])
+    print("Errored out:", count)
+
+data_dir = 'data'
+data_name = 'merged'
+
 wh = np.array(wh)
 print("Clustering feature data is ready. shape = (N object, width and height) =  {}".format(wh.shape))
 

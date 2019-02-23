@@ -11,14 +11,20 @@ __author__ = "Sayan Paul"
 __email__ = "sayanpau@usc.edu"
 
 IMAGE_H, IMAGE_W = 416, 416
-DEFAULT_CLASS_NAMES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'oid.names')
-FROZEN_MODEL_DIR = os.path.join(os.path.dirname(__file__), 'frozen_models', 'OID')
+
+OID_CLASS_NAMES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'oid.names')
+IMGNET_CLASS_NAMES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'imgnet.names')
+MERGED_CLASS_NAMES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'merged.names')
+
+OID_FROZEN_MODEL_DIR = os.path.join(os.path.dirname(__file__), 'frozen_models', 'OID')
+IMGNET_FROZEN_MODEL_DIR = os.path.join(os.path.dirname(__file__), 'frozen_models', 'IMGNET')
+MERGED_FROZEN_MODEL_DIR = os.path.join(os.path.dirname(__file__), 'frozen_models', 'MERGED')
 
 
 class ObjectRecognition:
     """Object Recognition API"""
 
-    def __init__(self, session=None, use_gpu=True, score_thresh=0.3, iou_thresh=0.5):
+    def __init__(self, session=None, use_gpu=True, score_thresh=0.3, iou_thresh=0.5, dataset_name='OID'):
         """
         Initiate model for API
         :param session: Tensorflow session variable
@@ -29,37 +35,58 @@ class ObjectRecognition:
         :type score_thresh: float
         :param iou_thresh: IOU threshold for non-max suppression
         :type iou_thresh: float
+        :param dataset_name: Dataset name for the model (OID, IMGNET, MERGED)
+        :type dataset_name: str
         """
-        self.classes = utils.read_class_names(DEFAULT_CLASS_NAMES_FILE)
-        self.num_classes = len(self.classes)
+
         self.img_h = IMAGE_H
         self.img_w = IMAGE_W
         self.use_gpu = use_gpu
         self.score_thresh = score_thresh
         self.iou_thresh = iou_thresh
+        self.dataset_name = dataset_name
+        self.sess = None
+        self.input_tensors = None
+        self.output_tensors = None
 
-        if session is not None:
-            self.sess = session
-        else:
-            if not use_gpu:
-                self.cpu_nms_graph = tf.Graph()
-                self.sess = tf.Session(graph=self.cpu_nms_graph)
+        def get_tensors(frozen_model_dir):
+            if session is not None:
+                sess = session
             else:
-                self.gpu_nms_graph = tf.Graph()
-                self.sess = tf.Session(graph=self.gpu_nms_graph)
-        if not use_gpu:
-            self.input_tensor, self.output_tensors = utils.read_pb_return_tensors(self.cpu_nms_graph,
-                                                                                  os.path.join(FROZEN_MODEL_DIR,
-                                                                                               "yolov3_cpu_nms.pb"),
-                                                                                  ["Placeholder:0", "concat_9:0",
-                                                                                   "mul_6:0", "concat_8:0"])
+                if not use_gpu:
+                    cpu_nms_graph = tf.Graph()
+                    sess = tf.Session(graph=cpu_nms_graph)
+                else:
+                    gpu_nms_graph = tf.Graph()
+                    sess = tf.Session(graph=gpu_nms_graph)
+            if not use_gpu:
+                input_tensors, output_tensors = utils.read_pb_return_tensors(cpu_nms_graph,
+                                                                             os.path.join(frozen_model_dir,
+                                                                                          "yolov3_cpu_nms.pb"),
+                                                                             ["Placeholder:0", "concat_9:0",
+                                                                              "mul_6:0", "concat_8:0"])
+            else:
+                input_tensors, output_tensors = utils.read_pb_return_tensors(gpu_nms_graph,
+                                                                             os.path.join(frozen_model_dir,
+                                                                                          "yolov3_gpu_nms.pb"),
+                                                                             ["Placeholder:0", "concat_10:0",
+                                                                              "concat_11:0", "concat_8:0",
+                                                                              "concat_13:0"])
+            return sess, input_tensors, output_tensors
+
+        if dataset_name == 'OID':
+            self.classes = utils.read_class_names(OID_CLASS_NAMES_FILE)
+            self.sess, self.input_tensors, self.output_tensors = get_tensors(OID_FROZEN_MODEL_DIR)
+        elif dataset_name == 'IMGNET':
+            self.classes = utils.read_class_names(IMGNET_CLASS_NAMES_FILE)
+            self.sess, self.input_tensors, self.output_tensors = get_tensors(IMGNET_FROZEN_MODEL_DIR)
+        elif dataset_name == 'MERGED':
+            self.classes = utils.read_class_names(MERGED_CLASS_NAMES_FILE)
+            self.sess, self.input_tensors, self.output_tensors = get_tensors(MERGED_FROZEN_MODEL_DIR)
         else:
-            self.input_tensor, self.output_tensors = utils.read_pb_return_tensors(self.gpu_nms_graph,
-                                                                                  os.path.join(FROZEN_MODEL_DIR,
-                                                                                               "yolov3_gpu_nms.pb"),
-                                                                                  ["Placeholder:0", "concat_10:0",
-                                                                                   "concat_11:0", "concat_8:0",
-                                                                                   "concat_13:0"])
+            raise Exception('Unsupported dataset type')
+
+        self.num_classes = len(self.classes)
 
     def predict_images(self, records):
         """
