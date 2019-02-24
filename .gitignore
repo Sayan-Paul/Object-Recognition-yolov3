@@ -8,7 +8,7 @@ bin-release/
 .settings/
 
 # Data folders
-data/OpenImages
+data/OID
 data/IMGNET
 
 # Checkpoint
