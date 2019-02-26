@@ -162,7 +162,9 @@ def update_label_map(obj_list):
 
     cur_len = len(LABEL_STOI)
     for i, v in enumerate(obj_list):
-        LABEL_STOI[v] = i + cur_len
+        if v not in LABEL_STOI:
+            LABEL_STOI[v] = cur_len
+            cur_len += 1
 
 
 def process_imagenet(data_dir, class_filter=None):
