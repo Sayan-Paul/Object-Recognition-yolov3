@@ -11,7 +11,7 @@ from PIL import Image
 
 wh = list()
 
-for dataset in ['OID', 'IMGNET']:
+for dataset in ['MERGED']:
     data_dir = 'data/' + dataset
     data_name = dataset.lower()
     with open(os.path.join(data_dir, data_name + ".json"), 'r') as oid:
@@ -30,7 +30,7 @@ for dataset in ['OID', 'IMGNET']:
                 wh.append([w, h])
     print("Errored out:", count)
 
-data_dir = 'data'
+data_dir = 'data/MERGED'
 data_name = 'merged'
 
 wh = np.array(wh)

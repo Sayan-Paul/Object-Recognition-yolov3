@@ -20,10 +20,12 @@ __email__ = "sayanpau@usc.edu"
 
 OPEN_IMAGES_OBJECTS_SET = set()
 IMAGENET_OBJECTS_SET = set()
-IMAGENET_DATA_DIR = "data/ImageNet"
+IMAGENET_DATA_DIR = "data/IMGNET"
 IMAGENET_DATASET_NAME = "imgnet"
-OPENIMAGES_DATA_DIR = "data/OpenImages"
+OPENIMAGES_DATA_DIR = "data/OID"
 OPENIMAGES_DATASET_NAME = "oid"
+MERGED_DATA_DIR = "data/MERGED"
+MERGED_DATASET_NAME = "merged"
 LABEL_STOI = dict()
 
 
@@ -98,7 +100,7 @@ def group_to_tf_record(boxes, image_file):
     return tf_example
 
 
-def process_openimages(data_dir):
+def process_openimages(data_dir, class_filter=None):
     """
     Process open Images dataset
     :param data_dir:
@@ -118,6 +120,10 @@ def process_openimages(data_dir):
         obj_list = get_immediate_subdirectories(split)
         for obj in tqdm(obj_list):
             obj_name = os.path.basename(obj).lower()
+
+            if class_filter:
+                if obj_name not in class_filter:
+                    continue
 
             img_file_list = get_file_list(obj, format=".jpg")
 
@@ -159,7 +165,7 @@ def update_label_map(obj_list):
         LABEL_STOI[v] = i + cur_len
 
 
-def process_imagenet(data_dir):
+def process_imagenet(data_dir, class_filter=None):
     """
     Process imagenet dataset
     :param data_dir: Directory with images folder, annotations folder and data_split.json
@@ -196,6 +202,10 @@ def process_imagenet(data_dir):
             cls_name = img_name.split('_')[0]
             cls_name = wnid_object_map[cls_name]
 
+            if class_filter:
+                if cls_name not in class_filter:
+                    continue
+
             # Store in label set
             IMAGENET_OBJECTS_SET.add(cls_name)
 
@@ -203,6 +213,13 @@ def process_imagenet(data_dir):
             img = os.path.join(images_dir, img_name+".jpg")
             if not os.path.exists(img):
                 img = os.path.join(images_dir, img_name + ".JPEG")
+
+            try:
+                width, height = Image.open(img).size
+            except:
+                print('Error', img)
+                continue
+
             dataset[split]['images'][img_name] = img
 
             # Store annotation from xml to box format
@@ -217,10 +234,10 @@ def process_imagenet(data_dir):
             for i in range(get_bb_count(root)):
                 annotation = []
                 annotation.append(cls_name)
-                annotation.append(get_int('xmin', root, i))
-                annotation.append(get_int('ymin', root, i))
-                annotation.append(get_int('xmax', root, i))
-                annotation.append(get_int('ymax', root, i))
+                annotation.append(get_int('xmin', root, i) * (width / get_int('width', root)))
+                annotation.append(get_int('ymin', root, i) * (height / get_int('height', root)))
+                annotation.append(get_int('xmax', root, i) * (width / get_int('width', root)))
+                annotation.append(get_int('ymax', root, i) * (height / get_int('height', root)))
                 dataset[split]['boxes'][img_name].append(annotation)
 
     IMAGENET_OBJECTS_SET = sorted(IMAGENET_OBJECTS_SET)
@@ -261,13 +278,22 @@ def write_tf_records(datasets, record_save_dir):
 
 def merge_datasets(dataset_list):
     """
-    TODO: Merge dataset objects in the list
-    :param dataset_list:
-    :type dataset_list:
-    :return:
-    :rtype:
+    Merge dataset objects in the list
+    :param dataset_list: datasets in list
+    :type dataset_list: List[Dict{}]
+    :return: Merged dataset
+    :rtype: Dict{}
     """
-    pass
+    result_datset = {}
+    for dataset in dataset_list:
+        for split in dataset:
+            if split not in result_datset:
+                result_datset[split] = {'images': {}, 'boxes': {}}
+            for img_name in dataset[split]['images']:
+                result_datset[split]['boxes'][img_name] = dataset[split]['boxes'][img_name]
+                result_datset[split]['images'][img_name] = dataset[split]['images'][img_name]
+
+    return result_datset
 
 
 def save_dataset(dataset_obj, data_dir, data_filename):
@@ -286,7 +312,7 @@ def save_dataset(dataset_obj, data_dir, data_filename):
         json.dump(dataset_obj, data_file)
 
 
-def process_dataset(dataset_dir, dataset_name):
+def process_dataset(dataset_dir, dataset_names, class_filter=None):
     """
     Process dataset main method
     :param dataset_dir:
@@ -297,10 +323,25 @@ def process_dataset(dataset_dir, dataset_name):
     :rtype:
     """
 
-    if dataset_name == OPENIMAGES_DATASET_NAME:
-        dataset = process_openimages(dataset_dir)
-    elif dataset_name == IMAGENET_DATASET_NAME:
-        dataset = process_imagenet(dataset_dir)
+    datasets = []
+
+    for i, dataset_name in enumerate(dataset_names):
+
+        if dataset_name == OPENIMAGES_DATASET_NAME:
+            dataset = process_openimages(dataset_dir[i], class_filter)
+        elif dataset_name == IMAGENET_DATASET_NAME:
+            dataset = process_imagenet(dataset_dir[i], class_filter)
+
+        datasets.append(dataset)
+
+    if len(datasets) == 1:
+        dataset = datasets[0]
+        dataset_dir = dataset_dir[0]
+        dataset_name = dataset_names[0]
+    else:
+        dataset = merge_datasets(datasets)
+        dataset_dir = MERGED_DATA_DIR
+        dataset_name = MERGED_DATASET_NAME
 
     save_label_map(dataset_dir, dataset_name)
     save_dataset(dataset, dataset_dir, dataset_name)
@@ -312,5 +353,9 @@ if __name__ == "__main__":
 
     main_data_dir = "data"
 
-    # process_dataset(OPENIMAGES_DATA_DIR, OPENIMAGES_DATASET_NAME)
-    process_dataset(IMAGENET_DATA_DIR, IMAGENET_DATASET_NAME)
+    # process_dataset([OPENIMAGES_DATA_DIR], [OPENIMAGES_DATASET_NAME])
+    # process_dataset([IMAGENET_DATA_DIR], [IMAGENET_DATASET_NAME])
+
+    process_dataset([OPENIMAGES_DATA_DIR, IMAGENET_DATA_DIR], [OPENIMAGES_DATASET_NAME, IMAGENET_DATASET_NAME],
+                    class_filter=['measuring cup', 'bowl', 'plate', 'spoon',
+                                  'knife', 'pot', 'doughnut', 'spatula', 'butter'])
