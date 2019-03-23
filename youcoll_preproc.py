@@ -54,7 +54,7 @@ def process_youcoll_dataset(directory_path, object_skip_list=None, frame_skip_li
                 if data[-4] == '0':
                     if object_skip_list and data[-1].replace('"', '') in object_skip_list:
                         continue
-                    if frame_skip_list and int(data[-5]) in frame_skip_list:
+                    if frame_skip_list and frame_skip_list[vid_name] and int(data[-5]) in frame_skip_list[vid_name]:
                         continue
                     locations.append(data[:-1])
                     labels.append(data[-1].replace('"', ''))
@@ -76,41 +76,41 @@ def process_youcoll_dataset(directory_path, object_skip_list=None, frame_skip_li
 
             frame_obj_map[vid_name][frames[i]][obj_name].append(box)
 
-        train_csv = []
+    train_csv = []
 
-        for folder in tqdm(video_frames_dir_list):
-            frame_list = get_file_list(folder, format=".jpg")
+    for folder in tqdm(video_frames_dir_list):
+        frame_list = get_file_list(folder, format=".jpg")
 
-            for i, frame in enumerate(frame_list):
+        for i, frame in enumerate(frame_list):
 
-                img = cv2.imread(frame)
-                video_id = os.path.basename(folder)
-                frame_id = eval(os.path.basename(frame).split('.')[0])
+            img = cv2.imread(frame)
+            video_id = os.path.basename(folder)
+            frame_id = eval(os.path.basename(frame).split('.')[0])
 
-                if frame_id not in frame_obj_map[video_id]:
-                    continue
+            if frame_id not in frame_obj_map[video_id]:
+                continue
 
-                for obj in frame_obj_map[video_id][frame_id]:
+            for obj in frame_obj_map[video_id][frame_id]:
 
-                    for box in frame_obj_map[video_id][frame_id][obj]:
-                        x1, y1, x2, y2 = [int(n) for n in box]
+                for box in frame_obj_map[video_id][frame_id][obj]:
+                    x1, y1, x2, y2 = [int(n) for n in box]
 
-                        if x1 == x2 or y1 == y2 or FRAME_MAX_X < x1 or FRAME_MAX_X < x2 or FRAME_MAX_Y < y1 \
-                                or FRAME_MAX_Y < y2 or x1 < 0 or x2 < 0 or y1 < 0 or y2 < 0:
-                            # Skip invalid frame
-                            continue
+                    if x1 == x2 or y1 == y2 or FRAME_MAX_X < x1 or FRAME_MAX_X < x2 or FRAME_MAX_Y < y1 \
+                            or FRAME_MAX_Y < y2 or x1 < 0 or x2 < 0 or y1 < 0 or y2 < 0:
+                        # Skip invalid frame
+                        continue
 
-                        crop_img = img[y1:y2, x1:x2]
-                        if crop_img is None or len(crop_img) == 0:
-                            continue
+                    crop_img = img[y1:y2, x1:x2]
+                    if crop_img is None or len(crop_img) == 0:
+                        continue
 
-                        train_csv.append([frame, box, obj])
+                    train_csv.append([frame, box, obj])
 
-        with open(os.path.join(directory_path, 'train_frames.csv'), mode='w', newline='') as train_file:
-            train_writer = csv.writer(train_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            train_writer.writerows(train_csv)
+    with open(os.path.join(directory_path, 'train_frames.csv'), mode='w', newline='') as train_file:
+        train_writer = csv.writer(train_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        train_writer.writerows(train_csv)
 
-        train_valid_split(directory_path, test_split=True)
+    train_valid_split(directory_path, test_split=True)
 
 
 def train_valid_split(directory_path, test_split=False, split_size=0.1):
@@ -150,5 +150,6 @@ if __name__ == "__main__":
 
     data_dir = "data/YOUCOLL"
 
-    process_youcoll_dataset(data_dir, object_skip_list=['Fork', 'Spatula'], frame_skip_list=range(4867, 4920))
+    process_youcoll_dataset(data_dir, object_skip_list=['fork', 'spatula'], frame_skip_list={'v_1': range(4867, 4920),
+                                                                                             'v_2': None})
     # train_valid_split(data_dir)
