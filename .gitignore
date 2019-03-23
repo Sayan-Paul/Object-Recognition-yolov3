@@ -10,6 +10,8 @@ bin-release/
 # Data folders
 data/OID
 data/IMGNET
+data/RND
+data/YOUCOLL
 
 # Checkpoint
 checkpoint*/yolo*

@@ -120,10 +120,10 @@ class ObjectRecognition:
 
         if self.use_gpu:
             boxes, _, labels, probs = self.sess.run(self.output_tensors,
-                                                    feed_dict={self.input_tensor: np.expand_dims(record, axis=0)})
+                                                    feed_dict={self.input_tensors: np.expand_dims(record, axis=0)})
         else:
             boxes, scores, probs = self.sess.run(self.output_tensors,
-                                                 feed_dict={self.input_tensor: np.expand_dims(record, axis=0)})
+                                                 feed_dict={self.input_tensors: np.expand_dims(record, axis=0)})
             boxes, _, labels, probs = utils.cpu_nms(boxes, scores, probs, self.num_classes,
                                                     score_thresh=self.score_thresh,
                                                     iou_thresh=self.iou_thresh)
@@ -136,18 +136,18 @@ class ObjectRecognition:
         :param img: Single image records
         :type img: [HxWx3] numpy array
         :return: Pre-processed image
-        :rtype: [self.img_h x self.img_w x 3] numpy array
+        :rtype: [self.img_w x self.img_h x 3] numpy array
         """
 
-        img_resized = np.array(np.resize(img, [self.img_h, self.img_w, 3]), dtype=np.float32)
+        img_resized = np.array(np.resize(img, [self.img_w, self.img_h, 3]), dtype=np.float32)
         img_resized = img_resized / 255.
         return img_resized
 
 
 if __name__ == "__main__":
-    model = ObjectRecognition(use_gpu=False)
-    image_path = "data/OpenImages/test/Apple/0da61cd490c57814.jpg"
-    img = np.asarray(Image.open(image_path))
+    model = ObjectRecognition(use_gpu=False, score_thresh=0.4, iou_thresh=0.5)
+    image_path = "data/OID/test/Apple/0da61cd490c57814.jpg"
+    img = Image.open(image_path)
     predictions = model.predict_image(img)
-    image = utils.draw_boxes(img, predictions['boxes'], predictions['scores'], predictions['labels'],
-                             model.classes, [model.img_h, model.img_w], show=True)
+    image = utils.draw_boxes(img, predictions['boxes'], predictions['labels'], predictions['labels'],
+                             model.classes, [IMAGE_H, IMAGE_W], show=True)

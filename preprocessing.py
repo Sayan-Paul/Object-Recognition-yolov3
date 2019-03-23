@@ -4,14 +4,12 @@
 
 import os
 import json
-import hashlib
 import tensorflow as tf
-import numpy as np
+import csv
 import xml.etree.ElementTree as ET
-import dataset_util
 from tqdm import tqdm
 from PIL import Image
-from utils import get_immediate_subdirectories, get_file_list, get_bb_count, get_int, get_item
+from utils import get_immediate_subdirectories, get_file_list, get_bb_count, get_int, group_to_tf_record, get_dir_list
 
 
 __author__ = "Sayan Paul"
@@ -20,12 +18,17 @@ __email__ = "sayanpau@usc.edu"
 
 OPEN_IMAGES_OBJECTS_SET = set()
 IMAGENET_OBJECTS_SET = set()
+YOUCOLL_OBJECTS_SET = set()
 IMAGENET_DATA_DIR = "data/IMGNET"
 IMAGENET_DATASET_NAME = "imgnet"
 OPENIMAGES_DATA_DIR = "data/OID"
 OPENIMAGES_DATASET_NAME = "oid"
 MERGED_DATA_DIR = "data/MERGED"
 MERGED_DATASET_NAME = "merged"
+RND_DATA_DIR = "data/RND"
+RND_DATASET_NAME = "rnd"
+YOUCOLL_DATA_DIR = "data/YOUCOLL"
+YOUCOLL_DATASET_NAME = "youcoll"
 LABEL_STOI = dict()
 
 
@@ -44,60 +47,70 @@ def save_label_map(data_dir, dataset_name="data"):
         label_map_out.write("\n".join(LABEL_STOI.keys()))
 
 
-def group_to_tf_record(boxes, image_file):
+def process_youcoll(data_dir, class_filter=None, skip_frames=None):
     """
-
-    :param boxes:
-    :type boxes:
-    :param image_file:
-    :type image_file:
+    Process Youcoll annotated datasets
+    :param data_dir:
+    :type data_dir:
+    :param class_filter:
+    :type class_filter:
     :return:
     :rtype:
     """
-    format = b'jpeg'
-    xmins = []
-    xmaxs = []
-    ymins = []
-    ymaxs = []
-    class_nums = []
-    class_ids = []
-    filename = image_file
-    try:
-        image = Image.open(filename)
-        width, height = image.size
-        with tf.gfile.GFile(filename, 'rb') as fid:
-            encoded_jpg = bytes(fid.read())
-    except:
-        return None
-    key = hashlib.sha256(encoded_jpg).hexdigest()
-    for i, anno in enumerate(boxes):
-        # Needs refactoring
-        # xmins.append(float(anno[1]))
-        # xmaxs.append(float(anno[3]))
-        # ymins.append(float(anno[2]))
-        # ymaxs.append(float(anno[4]))
-        # class_nums.append(LABEL_STOI[anno[0]])
-        # class_ids.append(bytes(anno[0], "utf-8"))
-        boxes[i] = [anno[1], anno[2], anno[3], anno[4], LABEL_STOI[anno[0]]]
+    global YOUCOLL_OBJECTS_SET
 
-    boxes = np.array(boxes, dtype=np.float32).tostring()
+    object_track_dir = os.path.join(data_dir, "annotations")
+    video_frames_dir = os.path.join(data_dir, "imgs")
 
-    tf_example = tf.train.Example(features=tf.train.Features(feature={
-        'image/height': dataset_util.int64_feature(height),
-        'image/width': dataset_util.int64_feature(width),
-        'image/key/sha256': dataset_util.bytes_feature(key.encode('utf8')),
-        'image/filename': dataset_util.bytes_feature(bytes(filename, "utf-8")),
-        'image/encoded': dataset_util.bytes_feature(encoded_jpg),
-        'image/format': dataset_util.bytes_feature(format),
-        # 'image/object/bbox/xmin': dataset_util.float_list_feature(xmins),
-        # 'image/object/bbox/xmax': dataset_util.float_list_feature(xmaxs),
-        # 'image/object/bbox/ymin': dataset_util.float_list_feature(ymins),
-        # 'image/object/bbox/ymax': dataset_util.float_list_feature(ymaxs),
-        # 'image/object/class/text': dataset_util.bytes_list_feature(class_ids),
-        # 'image/object/class/label': dataset_util.int64_list_feature(class_nums)
-        'boxes': tf.train.Feature(bytes_list=tf.train.BytesList(value=[boxes]))
-    }))
-    return tf_example
+    obj_file_list = get_file_list(object_track_dir, format='.txt')
+    video_frames_dir_list = get_dir_list(video_frames_dir, only_top=True)
+
+    dataset = dict()
+    for split in ['train', 'test']:
+        print("Current split:", split)
+
+        dataset[split] = {'images': dict(), 'boxes': dict()}
+
+        data_rows = []
+        with open(os.path.join(data_dir, split + '_frames.csv')) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            line_count = 0
+            for row in csv_reader:
+                data_rows.append(row)
+
+        for row in tqdm(data_rows):
+            img_path = row[0]
+            box = eval(row[1])
+            cls_name = row[2]
+
+            img_name = os.path.basename(img_path).split('.')[0]
+
+            if class_filter:
+                if cls_name not in class_filter:
+                    continue
+
+            # Store in label set
+            YOUCOLL_OBJECTS_SET.add(cls_name)
+
+            dataset[split]['images'][img_name] = img_path
+
+            # Store annotation from xml to box format
+
+            if img_name not in dataset[split]['boxes']:
+                dataset[split]['boxes'][img_name] = list()
+
+                annotation = []
+                annotation.append(cls_name)
+                annotation.append(box[0])
+                annotation.append(box[1])
+                annotation.append(box[2])
+                annotation.append(box[3])
+                dataset[split]['boxes'][img_name].append(annotation)
+
+    YOUCOLL_OBJECTS_SET = sorted(YOUCOLL_OBJECTS_SET)
+    update_label_map(YOUCOLL_OBJECTS_SET)
+
+    return dataset
 
 
 def process_openimages(data_dir, class_filter=None):
@@ -226,7 +239,7 @@ def process_imagenet(data_dir, class_filter=None):
 
             # Store annotation from xml to box format
 
-            if cls_name not in dataset[split]['boxes']:
+            if img_name not in dataset[split]['boxes']:
                 dataset[split]['boxes'][img_name] = list()
 
             anno_filename = os.path.join(anno_dir, img_name + ".xml")
@@ -271,7 +284,7 @@ def write_tf_records(datasets, record_save_dir):
 
         writer = tf.python_io.TFRecordWriter(record_save_file)
         for img_name in tqdm(datasets[split]['images'], desc="Writing to file"):
-            record = group_to_tf_record(datasets[split]['boxes'][img_name], datasets[split]['images'][img_name])
+            record = group_to_tf_record(datasets[split]['boxes'][img_name], datasets[split]['images'][img_name], LABEL_STOI)
             if record:
                 serialized = record.SerializeToString()
                 writer.write(serialized)
@@ -333,6 +346,8 @@ def process_dataset(dataset_dir, dataset_names, class_filter=None):
             dataset = process_openimages(dataset_dir[i], class_filter)
         elif dataset_name == IMAGENET_DATASET_NAME:
             dataset = process_imagenet(dataset_dir[i], class_filter)
+        elif dataset_name == YOUCOLL_DATASET_NAME:
+            dataset = process_youcoll(dataset_dir[i], class_filter)
 
         datasets.append(dataset)
 
@@ -342,8 +357,8 @@ def process_dataset(dataset_dir, dataset_names, class_filter=None):
         dataset_name = dataset_names[0]
     else:
         dataset = merge_datasets(datasets)
-        dataset_dir = MERGED_DATA_DIR
-        dataset_name = MERGED_DATASET_NAME
+        dataset_dir = RND_DATA_DIR # MERGED_DATA_DIR
+        dataset_name = RND_DATASET_NAME # MERGED_DATASET_NAME
 
     save_label_map(dataset_dir, dataset_name)
     save_dataset(dataset, dataset_dir, dataset_name)
@@ -358,6 +373,6 @@ if __name__ == "__main__":
     # process_dataset([OPENIMAGES_DATA_DIR], [OPENIMAGES_DATASET_NAME])
     # process_dataset([IMAGENET_DATA_DIR], [IMAGENET_DATASET_NAME])
 
-    process_dataset([OPENIMAGES_DATA_DIR, IMAGENET_DATA_DIR], [OPENIMAGES_DATASET_NAME, IMAGENET_DATASET_NAME],
-                    class_filter=['measuring cup', 'bowl', 'plate', 'spoon',
-                                  'knife', 'pot', 'doughnut', 'spatula', 'butter'])
+    # process_dataset([OPENIMAGES_DATA_DIR, IMAGENET_DATA_DIR], [OPENIMAGES_DATASET_NAME, IMAGENET_DATASET_NAME],
+    #                 class_filter=['bowl'])
+    process_dataset([YOUCOLL_DATA_DIR], [YOUCOLL_DATASET_NAME])

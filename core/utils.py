@@ -165,6 +165,14 @@ def resize_image_correct_bbox(image, boxes, image_h, image_w):
     return image, boxes
 
 
+def read_coco_names(class_file_name):
+    names = {}
+    with open(class_file_name, 'r') as data:
+        for ID, name in enumerate(data):
+            names[ID] = name.strip('\n')
+    return names
+
+
 def draw_boxes(image, boxes, scores, labels, classes, detection_size,
                font='./data/font/FiraMono-Medium.otf', show=True):
     """

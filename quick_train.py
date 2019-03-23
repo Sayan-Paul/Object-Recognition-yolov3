@@ -17,24 +17,24 @@ from core.dataset import dataset, Parser
 
 sess = tf.Session()
 
-DATASET_NAME = "IMGNET"
+DATASET_NAME = "YOUCOLL"
 
 IMAGE_H, IMAGE_W = 416, 416
 
-BATCH_SIZE = 16
-EPOCHS = 20000
-LR = 1e-6  # if Nan, decrease an order of magnitude
+BATCH_SIZE = 8
+EPOCHS = 5000
+LR = 2e-4  # if Nan, decrease an order of magnitude
 DECAY_STEPS = 1000
 DECAY_RATE = 0.9
 SHUFFLE_SIZE = 200
 CLASSES = utils.read_class_names('./data/' + DATASET_NAME.lower() + '.names')
 ANCHORS = utils.get_anchors('./data/' + DATASET_NAME.lower() + '_anchors.txt', IMAGE_H, IMAGE_W)
 NUM_CLASSES = len(CLASSES)
-EVAL_INTERNAL = 100
+EVAL_INTERNAL = 400
 
 
 train_tfrecord = "./data/" + DATASET_NAME + "/tfrecords/train/*.tfrecord"
-test_tfrecord = "./data/" + DATASET_NAME + "/tfrecords/validation/*.tfrecord"
+test_tfrecord = "./data/" + DATASET_NAME + "/tfrecords/test/*.tfrecord"
 
 
 parser = Parser(IMAGE_H, IMAGE_W, ANCHORS, NUM_CLASSES)

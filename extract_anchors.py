@@ -11,7 +11,11 @@ from PIL import Image
 
 wh = list()
 
-for dataset in ['MERGED']:
+sum_w = 0
+sum_h = 0
+tot_cnt = 0
+
+for dataset in ['YOUCOLL']:
     data_dir = 'data/' + dataset
     data_name = dataset.lower()
     with open(os.path.join(data_dir, data_name + ".json"), 'r') as oid:
@@ -21,6 +25,9 @@ for dataset in ['MERGED']:
         for img_name in tqdm(img_anno_data[split]['images'], desc="Reading " + split):
             try:
                 width, height = Image.open(img_anno_data[split]['images'][img_name]).size
+                sum_w += width
+                sum_h += height
+                tot_cnt += 1
             except:
                 count += 1
                 continue
@@ -30,15 +37,17 @@ for dataset in ['MERGED']:
                 wh.append([w, h])
     print("Errored out:", count)
 
-data_dir = 'data/MERGED'
-data_name = 'merged'
+print(round(sum_w / tot_cnt), round(sum_h / tot_cnt))
+
+data_dir = 'data/YOUCOLL'
+data_name = 'youcoll'
 
 wh = np.array(wh)
 print("Clustering feature data is ready. shape = (N object, width and height) =  {}".format(wh.shape))
 
-plt.figure(figsize=(10,10))
-plt.scatter(wh[:,0],wh[:,1],alpha=0.3)
-plt.title("Clusters",fontsize=20)
+plt.figure(figsize=(10, 10))
+plt.scatter(wh[:, 0], wh[:, 1], alpha=0.3)
+plt.title("Clusters", fontsize=20)
 plt.xlabel("normalized width", fontsize=20)
 plt.ylabel("normalized height", fontsize=20)
 plt.show()
